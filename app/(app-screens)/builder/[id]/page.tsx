@@ -3,6 +3,8 @@ import { AutomationProvider } from "../contexts/AutomationContext";
 import { AutomationNodesProvider } from "../contexts/AutomationNodesContext";
 import { NewNodeSubTabsProvider } from "../contexts/NewNodeSubTabsContext";
 
+export const instant = false;
+
 type Props = {
   params: Promise<{
     id: string;
