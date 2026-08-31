@@ -4,6 +4,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  Panel,
   applyEdgeChanges,
   applyNodeChanges,
   addEdge,
@@ -18,21 +19,17 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
+import AutomationTopInfo from "./AutomationTopInfo";
 
 export default function AutomationCanvas() {
-  const {nodes, edges, onNodesChange, onEdgesChange, onConnect} = useAutomationNodes()  
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = useAutomationNodes();
 
   return (
     <div className="h-[100vh] w-full min-w-0">
-      <ResizablePanelGroup
-        direction="horizontal"
-        className="h-full w-full"
-      >
+      <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+
         {/* Canvas */}
-        <ResizablePanel
-          defaultSize={75}
-          minSize={50}
-        >
+        <ResizablePanel defaultSize={75} minSize={50}>
           <div className="h-full w-full">
             <ReactFlow
               nodes={nodes}
@@ -44,21 +41,20 @@ export default function AutomationCanvas() {
             >
               <Background />
               <Controls />
+              <Panel position="top-left">
+                <AutomationTopInfo />
+              </Panel>
             </ReactFlow>
           </div>
         </ResizablePanel>
 
-        {/* Handle */}
         <ResizableHandle withHandle />
 
         {/* Right panel */}
-        <ResizablePanel
-          defaultSize={40}
-          minSize={20}
-          maxSize={500}
-        >
+        <ResizablePanel defaultSize={105} minSize={100} maxSize={800}>
           <RightPanel />
         </ResizablePanel>
+
       </ResizablePanelGroup>
     </div>
   );

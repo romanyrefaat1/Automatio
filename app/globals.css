@@ -332,3 +332,25 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 }
+
+/* Animated Button Animations */
+@keyframes button-icon-change {
+  0% {
+    transform: scale(1);
+    filter: blur(0);
+  }
+
+  50% {
+    transform: scale(0.7);
+    filter: blur(3px);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+.animate-button-icon {
+  animation: button-icon-change 240ms ease-in-out;
+}
