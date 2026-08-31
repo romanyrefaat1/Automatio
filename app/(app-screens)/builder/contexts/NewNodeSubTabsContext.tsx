@@ -9,14 +9,27 @@ import {
 } from "react";
 
 type Tab = {
-  id: number;
+  id: string;
   type: NodeTypes;
+  name: string;
+  description: string;
+  config: unknown;
 };
 
 type NewNodeSubTabsContextType = {
   tabs: Tab[];
-  addTab: (type: string) => void;
-  removeTabById: (id: number) => void;
+  activeTab: string | undefined;
+  setActiveTab: (id: string) => void;
+
+  addTab: (type: NodeTypes) => void;
+
+  updateTab: (
+    id: string,
+    updates: Partial<Pick<Tab, "name" | "description">>
+  ) => void;
+
+  updateTabConfig: (id: string, config: unknown) => void;
+  removeTabById: (id: string) => void;
 };
 
 const NewNodeSubTabsContext =
@@ -28,28 +41,80 @@ export function NewNodeSubTabsProvider({
   children: ReactNode;
 }) {
   const [tabs, setTabs] = useState<Tab[]>([]);
-  const [tabsContent, setTabsContent] = useState<Tab[]>([]);
+  const [activeTab, setActiveTab] = useState<string>("default");
 
-  const addTab = (type: string) => {
-    setTabs((prev) => [
+  const addTab = (type: NodeTypes) => {
+  setTabs((prev) => {
+    const count = prev.filter((tab) => tab.type === type).length + 1;
+
+    return [
       ...prev,
       {
+        id: crypto.randomUUID(),
         type,
-        id: Math.random(),
-        name: type.slice(0,1).toUpperCase() + type.slice(1) + `${tabs.filter((el)=> el.type === type).length+1}`
+        name: `${type.slice(0, 1).toUpperCase()}${type.slice(1)} ${count}`,
+        description: "",
+        config: {},
       },
-    ]);
+    ];
+  });
+
+  // Always go back to Add Nodes after creating a tab
+  setActiveTab("default");
+};
+
+  const updateTab = (
+    id: string,
+    updates: Partial<Pick<Tab, "name" | "description">>
+  ) => {
+    setTabs((prev) =>
+      prev.map((tab) =>
+        tab.id === id
+          ? {
+              ...tab,
+              ...updates,
+            }
+          : tab
+      )
+    );
   };
 
-  const removeTabById = (id: number) => {
-    setTabs((prev) => prev.filter((tab) => tab.id !== id));
+  const updateTabConfig = (id: string, config: unknown) => {
+    setTabs((prev) =>
+      prev.map((tab) =>
+        tab.id === id
+          ? {
+              ...tab,
+              config,
+            }
+          : tab
+      )
+    );
+  };
+
+  const removeTabById = (id: string) => {
+    setTabs((prev) => {
+      const remainingTabs = prev.filter((tab) => tab.id !== id);
+
+      // If we're deleting the currently active tab,
+      // switch to the first remaining tab.
+      if (activeTab === id) {
+        setActiveTab(remainingTabs[0]?.id);
+      }
+
+      return remainingTabs;
+    });
   };
 
   return (
     <NewNodeSubTabsContext.Provider
       value={{
         tabs,
+        activeTab,
+        setActiveTab,
         addTab,
+        updateTab,
+        updateTabConfig,
         removeTabById,
       }}
     >

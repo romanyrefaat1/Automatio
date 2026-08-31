@@ -87,7 +87,9 @@ export type AutomationStepType =
   | "wait_for_element"
   | "screenshot"
   | "extract_text"
-  | "assert_text";
+  | "assert_text"
+  | "condition"
+  | "end";
 
 
 /* =========================================================
@@ -143,6 +145,29 @@ export type ScreenshotConfig = {
   fullPage?: boolean;
 };
 
+export type ConditionConfig =
+  | {
+      source: "url";
+      operator: "equals" | "not_equals" | "contains" | "not_contains";
+      value: string;
+    }
+  | {
+      source: "text";
+      operator: "equals" | "not_equals" | "contains" | "not_contains";
+      value: string;
+    }
+  | {
+      source: "variable";
+      variable: string;
+      operator: "equals" | "not_equals" | "contains" | "not_contains";
+      value: string;
+    }
+  | {
+      source: "element";
+      selector: string;
+      operator: "exists" | "not_exists";
+    };
+
 export type ExtractTextConfig = {
   selector: string;
   save_as: string;
@@ -174,6 +199,16 @@ export type AutomationStepConfigMap = {
   screenshot: ScreenshotConfig;
   extract_text: ExtractTextConfig;
   assert_text: AssertTextConfig;
+  condition: ConditionConfig;
+  end: Record<string, never>;
+};
+
+export type ConditionResult = {
+  passed: boolean;
+};
+
+export type EndResult = {
+  completed: true;
 };
 
 
@@ -341,6 +376,8 @@ export type AutomationStepResultMap = {
   screenshot: ScreenshotResult;
   extract_text: ExtractTextResult;
   assert_text: AssertTextResult;
+  condition: ConditionResult;
+  end: EndResult;
 };
 
 

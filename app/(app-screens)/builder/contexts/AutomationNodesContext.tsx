@@ -4,6 +4,7 @@ import {
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
+  MarkerType,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -39,32 +40,15 @@ const AutomationNodesContext = createContext<
   AutomationNodesContextType | undefined
 >(undefined);
 
-const initialNodes: AutomationNode[] = [
-  {
-    id: "n1",
-    position: { x: 0, y: 0 },
-    data: {
-      label: "Node 1",
-    },
-    type: "input",
-  },
-  {
-    id: "n2",
-    position: { x: 100, y: 100 },
-    data: {
-      label: "Node 2",
-    },
-    type: "output",
-  },
-];
-
 const initialEdges: Edge[] = [
   {
     id: "n1-n2",
     source: "n1",
     target: "n2",
     type: "smoothstep",
-    label: "connects with",
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
   },
 ];
 
@@ -73,11 +57,9 @@ export function AutomationNodesProvider({
 }: {
   children: ReactNode;
 }) {
-  const [nodes, setNodes] =
-    useState<AutomationNode[]>(initialNodes);
+  const [nodes, setNodes] = useState<AutomationNode[]>([]);
 
-  const [edges, setEdges] =
-    useState<Edge[]>(initialEdges);
+  const [edges, setEdges] = useState<Edge[]>(initialEdges);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<AutomationNode>[]) => {
@@ -97,14 +79,33 @@ export function AutomationNodesProvider({
     []
   );
 
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      setEdges((edgesSnapshot) =>
-        addEdge(connection, edgesSnapshot)
-      );
-    },
-    []
-  );
+ const onConnect = useCallback(
+  (connection: Connection) => {
+    const { source, target } = connection;
+
+    if (!source || !target) return;
+
+    // source = previous node
+    // target = next node
+
+    console.log("Previous node:", source);
+    console.log("Next node:", target);
+
+    setEdges((currentEdges) =>
+      addEdge(
+        {
+          ...connection,
+          type: "smoothstep",
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+        },
+        currentEdges
+      )
+    );
+  },
+  []
+);
 
   const addNode = useCallback((node: AutomationNode) => {
     setNodes((currentNodes) => [

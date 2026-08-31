@@ -49,7 +49,7 @@ export type AutomationNodeType =
   | "uncheck"
   | "press"
   | "wait"
-  | "waitForElement"
+  | "wait_for_element"
   | "screenshot"
   | "extractText"
   | "assert"
