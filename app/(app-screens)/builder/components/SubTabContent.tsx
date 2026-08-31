@@ -109,19 +109,19 @@ export default function SubTabContent({
 
       {/* Type-specific Configuration */}
       <ConfigComponent
-        name={tab.name}
-        description={tab.description}
-        config={tab.config}
-        onNameChange={(name) =>
-          updateTab(tabId, { name })
-        }
-        onDescriptionChange={(description) =>
-          updateTab(tabId, { description })
-        }
-        onConfigChange={(config) =>
-          updateTabConfig(tabId, config)
-        }
-      />
+  name={tab.label}
+  description={tab.description}
+  config={tab.config}
+  onNameChange={(name) =>
+    updateTab(tabId, { label: name })
+  }
+  onDescriptionChange={(description) =>
+    updateTab(tabId, { description })
+  }
+  onConfigChange={(config) =>
+    updateTabConfig(tabId, config)
+  }
+/>
 
       {/* Add Node */}
       <Button

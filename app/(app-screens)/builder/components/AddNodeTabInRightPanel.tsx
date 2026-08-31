@@ -1,4 +1,5 @@
-"use client"
+"use client";
+
 import { nodes } from "@/components/nodes";
 import AddNodeButton from "./AddNodeButton";
 
@@ -13,10 +14,9 @@ export default function AddNodeTabInRightPanel() {
         {Object.entries(nodes).map(([type, node]) => (
           <AddNodeButton
             key={type}
-            type={type}
+            type={type as keyof typeof nodes}
             title={node.title}
             description={node.description}
-            component={node.component}
             defaultData={node.defaultData}
           />
         ))}

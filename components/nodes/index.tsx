@@ -253,3 +253,4 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 };
+

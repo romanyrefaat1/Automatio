@@ -573,19 +573,14 @@ export function AutomationNodesProvider({
        * --------------------------------
        */
 
-      const stepsToSave = nodes.map((node, index) => ({
+    const stepsToSave = nodes.map((node, index) => ({
   id: node.id,
   automation_id: automationId,
-
   position: index,
-
   position_x: node.position.x,
   position_y: node.position.y,
-
-  title: node.data.label,
-
+  title: node.data.label?.trim() || "Untitled step",
   type: node.type,
-
   config: node.data.config ?? {},
 }));
 
