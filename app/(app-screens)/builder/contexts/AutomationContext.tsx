@@ -9,16 +9,14 @@ import {
   type ReactNode,
 } from "react";
 
-import type { Database, Tables } from "@/types/database";
+import type { Tables } from "@/types/supabase-auto";
 import { createClient } from "@/lib/supabase/client";
 
 type Automation = Tables<"automations">;
-type AutomationStep = Tables<"automation_steps">;
 type AutomationSchedule = Tables<"automation_schedules">;
 
 type AutomationContextType = {
   automation: Automation | null;
-  steps: AutomationStep[];
   schedules: AutomationSchedule[];
 
   loading: boolean;
@@ -40,12 +38,23 @@ export function AutomationProvider({
   automationId,
   children,
 }: AutomationProviderProps) {
-  const [automation, setAutomation] = useState<Automation | null>(null);
-  const [steps, setSteps] = useState<AutomationStep[]>([]);
-  const [schedules, setSchedules] = useState<AutomationSchedule[]>([]);
+  const [automation, setAutomation] =
+    useState<Automation | null>(null);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [schedules, setSchedules] =
+    useState<AutomationSchedule[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  /*
+   * ----------------------------------------
+   * Fetch automation
+   * ----------------------------------------
+   */
 
   const fetchAutomation = useCallback(async () => {
     setLoading(true);
@@ -56,7 +65,6 @@ export function AutomationProvider({
     try {
       const [
         automationResult,
-        stepsResult,
         schedulesResult,
       ] = await Promise.all([
         supabase
@@ -66,24 +74,16 @@ export function AutomationProvider({
           .single(),
 
         supabase
-          .from("automation_steps")
-          .select("*")
-          .eq("automation_id", automationId)
-          .order("position", { ascending: true }),
-
-        supabase
           .from("automation_schedules")
           .select("*")
           .eq("automation_id", automationId)
-          .order("created_at", { ascending: true }),
+          .order("created_at", {
+            ascending: true,
+          }),
       ]);
 
       if (automationResult.error) {
         throw automationResult.error;
-      }
-
-      if (stepsResult.error) {
-        throw stepsResult.error;
       }
 
       if (schedulesResult.error) {
@@ -91,13 +91,14 @@ export function AutomationProvider({
       }
 
       setAutomation(automationResult.data);
-      setSteps(stepsResult.data);
       setSchedules(schedulesResult.data);
     } catch (err) {
-      console.error("Failed to fetch automation:", err);
+      console.error(
+        "Failed to fetch automation:",
+        err
+      );
 
       setAutomation(null);
-      setSteps([]);
       setSchedules([]);
 
       setError(
@@ -111,17 +112,18 @@ export function AutomationProvider({
   }, [automationId]);
 
   useEffect(() => {
-    fetchAutomation();
+    void fetchAutomation();
   }, [fetchAutomation]);
 
   return (
     <AutomationContext.Provider
       value={{
         automation,
-        steps,
         schedules,
+
         loading,
         error,
+
         refetch: fetchAutomation,
       }}
     >
@@ -131,7 +133,9 @@ export function AutomationProvider({
 }
 
 export function useAutomationContext() {
-  const context = useContext(AutomationContext);
+  const context = useContext(
+    AutomationContext
+  );
 
   if (!context) {
     throw new Error(

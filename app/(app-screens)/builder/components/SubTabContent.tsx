@@ -38,28 +38,28 @@ export default function SubTabContent({
   const ConfigComponent = nodeConfigComponents[type];
 
   const handleAddNode = () => {
-    const node: AutomationNode = {
-      id: crypto.randomUUID(),
+  const node: AutomationNode = {
+    id: crypto.randomUUID(),
 
-      type,
+    type,
 
-      position: {
-        x: 100,
-        y: 100,
-      },
+    position: {
+      x: 100,
+      y: 100,
+    },
 
-      data: {
-        label: tab.name,
-        description: tab.description,
-        config: tab.config,
-      },
-    };
-
-    console.log("ADDING NODE:", node);
-
-    addNode(node);
-    removeTabById(tabId);
+    data: {
+      label: tab.label,
+      description: tab.description,
+      config: tab.config,
+    },
   };
+
+  console.log("ADDING NODE:", node);
+
+  addNode(node);
+  removeTabById(tabId);
+};
 
   return (
     <div className="space-y-6">
@@ -75,10 +75,10 @@ export default function SubTabContent({
 
           <Input
             id={`node-name-${tabId}`}
-            value={tab.name}
+            value={tab.label}
             onChange={(e) =>
               updateTab(tabId, {
-                name: e.target.value,
+                label: e.target.value,
               })
             }
             placeholder="Enter node name"

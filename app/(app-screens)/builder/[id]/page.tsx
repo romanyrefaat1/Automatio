@@ -15,7 +15,7 @@ const { id: automationId } = await params;
     return (
         <div className="w-screen h-screen">
             <AutomationProvider automationId={automationId}>
-            <AutomationNodesProvider>
+            <AutomationNodesProvider automationId={automationId}>
             <NewNodeSubTabsProvider>
                 <AutomationCanvas />
             </NewNodeSubTabsProvider>

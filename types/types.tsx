@@ -20,7 +20,7 @@ import {
 } from "@/components/nodes";
 
 export type AutomationNodeData = {
-  label?: string;
+  label: string;
   description?: string;
 
   url?: string;
@@ -51,8 +51,8 @@ export type AutomationNodeType =
   | "wait"
   | "wait_for_element"
   | "screenshot"
-  | "extractText"
-  | "assert"
+  | "extract_text"
+  | "assert_text"
   | "condition"
   | "end";
 
@@ -88,11 +88,11 @@ export const nodeTypes: NodeTypes = {
   press: PressNode,
 
   wait: WaitNode,
-  waitForElement: WaitForElementNode,
+  wait_for_element: WaitForElementNode,
 
   screenshot: ScreenshotNode,
-  extractText: ExtractTextNode,
-  assert: AssertNode,
+  extract_text: ExtractTextNode,
+  assert_text: AssertNode,
 
   condition: ConditionNode,
   end: EndNode,

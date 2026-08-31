@@ -11,7 +11,7 @@ import {
 type Tab = {
   id: string;
   type: NodeTypes;
-  name: string;
+  label: string;
   description: string;
   config: unknown;
 };
@@ -25,7 +25,7 @@ type NewNodeSubTabsContextType = {
 
   updateTab: (
     id: string,
-    updates: Partial<Pick<Tab, "name" | "description">>
+    updates: Partial<Pick<Tab, "label" | "description">>
   ) => void;
 
   updateTabConfig: (id: string, config: unknown) => void;
@@ -52,7 +52,7 @@ export function NewNodeSubTabsProvider({
       {
         id: crypto.randomUUID(),
         type,
-        name: `${type.slice(0, 1).toUpperCase()}${type.slice(1)} ${count}`,
+        label: `${type.slice(0, 1).toUpperCase()}${type.slice(1)} ${count}`,
         description: "",
         config: {},
       },
@@ -65,7 +65,7 @@ export function NewNodeSubTabsProvider({
 
   const updateTab = (
     id: string,
-    updates: Partial<Pick<Tab, "name" | "description">>
+    updates: Partial<Pick<Tab, "label" | "description">>
   ) => {
     setTabs((prev) =>
       prev.map((tab) =>

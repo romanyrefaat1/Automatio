@@ -61,7 +61,7 @@ export default function NewNodes() {
               <X className="size-2.5" />
             </Button>
 
-            {tab.name}
+            {tab.label}
           </TabsTrigger>
         ))}
       </TabsList>
