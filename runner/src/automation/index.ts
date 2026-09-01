@@ -1,12 +1,20 @@
 import { chromium } from "@playwright/test";
-import loop from "./loop";
+import runner from "./runner";
 
-// Runner
+export async function index(
+  workflowArray: any[],
+  workflowEdges: any[]
+) {
+  const browser = await chromium.launch({
+    headless: false,
+  });
 
-export async function index(workflowArray) {
-    const browser = await chromium.launch({ headless: false });
+  const page = await browser.newPage();
 
-    const page = await browser.newPage()
-    
-    loop(workflowArray, browser, page)
+  await runner(
+    workflowArray,
+    workflowEdges,
+    browser,
+    page
+  );
 }

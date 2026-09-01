@@ -10,8 +10,9 @@ import wait_for_element from "./nodes/wait_for_element";
 import screenshot from "./nodes/screenshot";
 import extract_text from "./nodes/extract_text";
 import assert_text from "./nodes/assert_text";
+import condition from "./nodes/condition";
+import loop_node from "./nodes/loop";
 
-// Finds the correct node
 export async function dispatcher(workflowNode, browser, page) {
   switch (workflowNode.type) {
     case "goto":
@@ -47,8 +48,14 @@ export async function dispatcher(workflowNode, browser, page) {
     case "extract_text":
       return extract_text(workflowNode.config, page);
 
-    case "assert_text": // find text that matches this exact word
+    case "assert_text":
       return assert_text(workflowNode.config, page);
+
+    case "condition":
+      return condition(workflowNode.config, page);
+
+    case "loop":
+      return loop_node(workflowNode.config, page);
 
     default:
       throw new Error(`Unknown workflow node type: ${workflowNode.type}`);
