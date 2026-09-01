@@ -17,4 +17,6 @@ export async function index(
     browser,
     page
   );
+
+  browser.close()
 }

@@ -1,6 +1,47 @@
 import { Browser, Page } from "@playwright/test";
+
 import { dispatcher } from "./dispatcher";
 import condition from "./nodes/condition";
+
+import interpolate from "./nodes/helper/interpolate";
+
+import type { WorkflowVariables } from "./nodes/helper/variables";
+
+function getNode(
+  workflowArray: any[],
+  nodeId: string
+) {
+  const node = workflowArray.find(
+    (node) => node.id === nodeId
+  );
+
+  if (!node) {
+    throw new Error(`Node ${nodeId} not found`);
+  }
+
+  return node;
+}
+
+function getOutgoingEdges(
+  workflowEdges: any[],
+  nodeId: string
+) {
+  return workflowEdges.filter(
+    (edge) => edge.source === nodeId
+  );
+}
+
+function getEdgeByHandle(
+  workflowEdges: any[],
+  nodeId: string,
+  handle: string
+) {
+  return workflowEdges.find(
+    (edge) =>
+      edge.source === nodeId &&
+      edge.sourceHandle === handle
+  );
+}
 
 export default async function runner(
   workflowArray: any[],
@@ -14,29 +55,45 @@ export default async function runner(
 
   let currentNodeId = workflowArray[0].id;
 
-  // Stores how many times each loop has run
+  /*
+   * Keeps track of loop iterations.
+   *
+   * Example:
+   *
+   * loopState
+   * ├── loop-1 → 3
+   * └── loop-2 → 7
+   */
   const loopState = new Map<string, number>();
 
-  while (currentNodeId) {
-    const currentNode = workflowArray.find(
-      (node) => node.id === currentNodeId
-    );
+  /*
+   * Stores values produced by the workflow.
+   *
+   * Example:
+   *
+   * variables
+   * ├── username → "Romany"
+   * ├── page_title → "Dashboard"
+   * └── status → "success"
+   */
+  const variables: WorkflowVariables = new Map();
 
-    if (!currentNode) {
-      throw new Error(`Node ${currentNodeId} not found`);
-    }
+  while (currentNodeId) {
+    const currentNode = getNode(
+      workflowArray,
+      currentNodeId
+    );
 
     console.log(
       `Running node ${currentNode.id}: ${currentNode.type}`
     );
 
     /*
+     * =========================
      * LOOP
-     *
-     * A loop does not get handled by the normal dispatcher.
-     * The runner controls the loop because the runner controls
-     * navigation.
+     * =========================
      */
+
     if (currentNode.type === "loop") {
       const currentIteration =
         loopState.get(currentNode.id) ?? 0;
@@ -47,6 +104,7 @@ export default async function runner(
       /*
        * Safety limit
        */
+
       if (
         maxIterations !== undefined &&
         currentIteration >= maxIterations
@@ -57,10 +115,10 @@ export default async function runner(
 
         loopState.delete(currentNode.id);
 
-        const doneEdge = workflowEdges.find(
-          (edge) =>
-            edge.source === currentNode.id &&
-            edge.sourceHandle === "done"
+        const doneEdge = getEdgeByHandle(
+          workflowEdges,
+          currentNode.id,
+          "done"
         );
 
         if (!doneEdge) {
@@ -77,10 +135,18 @@ export default async function runner(
       /*
        * Evaluate loop condition
        */
-      const conditionResponse = await condition(
-        currentNode.config.condition,
-        page
-      );
+
+      const loopCondition =
+        interpolate(
+          currentNode.config.condition,
+          variables
+        );
+
+      const conditionResponse =
+        await condition(
+          loopCondition,
+          page
+        );
 
       console.log(
         `Loop ${currentNode.id} condition:`,
@@ -88,17 +154,16 @@ export default async function runner(
       );
 
       if (!conditionResponse.success) {
-        console.error(
-          "Loop condition failed:",
-          conditionResponse.error
+        throw new Error(
+          `Loop ${currentNode.id} condition failed`
         );
-
-        break;
       }
 
       /*
-       * Condition is FALSE → loop is finished
+       * Condition is false
+       * → leave the loop
        */
+
       if (!conditionResponse.data) {
         console.log(
           `Loop ${currentNode.id} condition is false`
@@ -106,10 +171,10 @@ export default async function runner(
 
         loopState.delete(currentNode.id);
 
-        const doneEdge = workflowEdges.find(
-          (edge) =>
-            edge.source === currentNode.id &&
-            edge.sourceHandle === "done"
+        const doneEdge = getEdgeByHandle(
+          workflowEdges,
+          currentNode.id,
+          "done"
         );
 
         if (!doneEdge) {
@@ -124,9 +189,12 @@ export default async function runner(
       }
 
       /*
-       * Condition is TRUE → run loop body
+       * Condition is true
+       * → enter loop body
        */
-      const nextIteration = currentIteration + 1;
+
+      const nextIteration =
+        currentIteration + 1;
 
       loopState.set(
         currentNode.id,
@@ -141,10 +209,10 @@ export default async function runner(
         }`
       );
 
-      const bodyEdge = workflowEdges.find(
-        (edge) =>
-          edge.source === currentNode.id &&
-          edge.sourceHandle === "body"
+      const bodyEdge = getEdgeByHandle(
+        workflowEdges,
+        currentNode.id,
+        "body"
       );
 
       if (!bodyEdge) {
@@ -159,38 +227,103 @@ export default async function runner(
     }
 
     /*
-     * NORMAL NODE
+     * =========================
+     * INTERPOLATE VARIABLES
+     * =========================
+     *
+     * Example:
+     *
+     * {
+     *   expected: "{{username}}"
+     * }
+     *
+     * becomes:
+     *
+     * {
+     *   expected: "Romany"
+     * }
      */
+
+    const resolvedConfig = interpolate(
+      currentNode.config,
+      variables
+    );
+
+    const nodeToRun = {
+      ...currentNode,
+      config: resolvedConfig,
+    };
+
+    /*
+     * =========================
+     * DISPATCH NODE
+     * =========================
+     */
+
     const response = await dispatcher(
-      currentNode,
+      nodeToRun,
       browser,
       page
     );
 
-    console.log("Response:", response);
-
-    /*
-     * Node failed
-     */
-    if (!response.success) {
-      console.error(
-        "Node failed:",
-        response.error
-      );
-
-      break;
-    }
-
-    /*
-     * Find outgoing edges
-     */
-    const outgoingEdges = workflowEdges.filter(
-      (edge) => edge.source === currentNode.id
+    console.log(
+      "Response:",
+      response
     );
 
     /*
-     * No outgoing edge = workflow finished
+     * =========================
+     * SAVE VARIABLES
+     * =========================
+     *
+     * Currently extract_text
+     * can save its result.
      */
+
+    if (
+  response.success &&
+  response.save_as
+) {
+  variables.set(
+    response.save_as,
+    response.data
+  );
+
+  console.log(
+    `Variable "${response.save_as}" =`,
+    response.data
+  );
+}
+
+    /*
+     * =========================
+     * NODE FAILURE
+     * =========================
+     */
+
+    if (!response.success) {
+      throw new Error(
+        `Node ${currentNode.id} failed`
+      );
+    }
+
+    /*
+     * =========================
+     * OUTGOING EDGES
+     * =========================
+     */
+
+    const outgoingEdges =
+      getOutgoingEdges(
+        workflowEdges,
+        currentNode.id
+      );
+
+    /*
+     * No outgoing edges
+     * → workflow finished
+     */
+
     if (outgoingEdges.length === 0) {
       console.log(
         `Node ${currentNode.id} has no outgoing edges. Workflow finished.`
@@ -200,16 +333,20 @@ export default async function runner(
     }
 
     /*
+     * =========================
      * CONDITION
+     * =========================
      */
+
     if (currentNode.type === "condition") {
       const handle = response.data
         ? "true"
         : "false";
 
-      const edge = outgoingEdges.find(
-        (edge) =>
-          edge.sourceHandle === handle
+      const edge = getEdgeByHandle(
+        workflowEdges,
+        currentNode.id,
+        handle
       );
 
       if (!edge) {
@@ -228,13 +365,12 @@ export default async function runner(
     }
 
     /*
-     * NORMAL NODE
-     *
-     * Normal nodes simply follow their
-     * outgoing edge.
+     * =========================
+     * NORMAL NEXT NODE
+     * =========================
      */
-    currentNodeId = outgoingEdges[0].target;
-  }
 
-  await browser.close();
+    currentNodeId =
+      outgoingEdges[0].target;
+  }
 }

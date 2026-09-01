@@ -1,44 +1,63 @@
 import { Page } from "@playwright/test";
+import compare from "./helper/compare";
 
-export default async function condition(config: any, page: Page) {
+export default async function condition(
+  config: any,
+  page: Page
+) {
   try {
-    const text = await page.locator(config.selector).textContent();
+    let actual: unknown;
 
-    const actual = text?.trim() ?? "";
-    const expected = String(config.value);
+    switch (config.source) {
+      case "text": {
+        actual = await page
+          .locator(config.selector)
+          .textContent();
 
-    let result = false;
+        actual = String(actual ?? "").trim();
 
-    switch (config.operator) {
-      case "is":
-        result = actual === expected;
         break;
+      }
 
-      case "is_not":
-        result = actual !== expected;
-        break;
+      case "url": {
+        actual = page.url();
 
-      case "contains":
-        result = actual.includes(expected);
         break;
+      }
 
-      case "not_contains":
-        result = !actual.includes(expected);
-        break;
+      case "title": {
+        actual = await page.title();
 
-      case "starts_with":
-        result = actual.startsWith(expected);
         break;
+      }
 
-      case "ends_with":
-        result = actual.endsWith(expected);
+      case "input_value": {
+        actual = await page
+          .locator(config.selector)
+          .inputValue();
+
         break;
+      }
+
+      case "attribute": {
+        actual = await page
+          .locator(config.selector)
+          .getAttribute(config.attribute);
+
+        break;
+      }
 
       default:
         throw new Error(
-          `Unknown condition operator: ${config.operator}`
+          `Unknown condition source: ${config.source}`
         );
     }
+
+    const result = compare(
+      actual,
+      config.operator,
+      config.value
+    );
 
     return {
       success: true,
