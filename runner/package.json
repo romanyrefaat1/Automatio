@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx src/index.ts",
+    "workflow": "tsx src/automation/test.ts",
     "chatgpt": "tsx src/chatgpt/test.ts"
   },
   "keywords": [],
