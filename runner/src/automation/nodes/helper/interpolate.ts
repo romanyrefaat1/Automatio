@@ -9,38 +9,30 @@ export default function interpolate(
       /\{\{\s*([^}]+?)\s*\}\}/g,
       (match, variableName) => {
         if (!variables.has(variableName)) {
-          throw new Error(
-            `Variable "${variableName}" not found`
-          );
+          throw new Error(`Variable "${variableName}" not found`);
         }
 
-        return String(
-          variables.get(variableName)
-        );
+        const variable = variables.get(variableName);
+
+        if (typeof variable === "object" && variable !== null) {
+          return JSON.stringify(variable, null, 2);
+        }
+
+        return String(variable);
       }
     );
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) =>
-      interpolate(item, variables)
-    );
+    return value.map((item) => interpolate(item, variables));
   }
 
-  if (
-    value !== null &&
-    typeof value === "object"
-  ) {
+  if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(
-        ([key, nestedValue]) => [
-          key,
-          interpolate(
-            nestedValue,
-            variables
-          ),
-        ]
-      )
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        interpolate(nestedValue, variables),
+      ])
     );
   }
 
