@@ -91,7 +91,7 @@ export function AutomationProvider({
       }
 
       setAutomation(automationResult.data);
-      setSchedules(schedulesResult.data);
+      setSchedules(schedulesResult.data ?? []);
     } catch (err) {
       console.error(
         "Failed to fetch automation:",

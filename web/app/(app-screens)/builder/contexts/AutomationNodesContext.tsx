@@ -158,46 +158,46 @@ export function AutomationNodesProvider({
    */
 
   const updateGraph = useCallback(
-  (
-    updater:
-      | AutomationEditorState
-      | ((
-          previous: AutomationEditorState
-        ) => AutomationEditorState),
-    saveHistory = true
-  ) => {
-    const previousState = {
-      nodes,
-      edges,
-    };
+    (
+      updater:
+        | AutomationEditorState
+        | ((
+            previous: AutomationEditorState
+          ) => AutomationEditorState),
+      saveHistory = true
+    ) => {
+      const previousState = {
+        nodes,
+        edges,
+      };
 
-    const nextState =
-      typeof updater === "function"
-        ? updater(previousState)
-        : updater;
+      const nextState =
+        typeof updater === "function"
+          ? updater(previousState)
+          : updater;
 
-    if (
-      JSON.stringify(previousState) ===
-      JSON.stringify(nextState)
-    ) {
-      return;
-    }
+      if (
+        JSON.stringify(previousState) ===
+        JSON.stringify(nextState)
+      ) {
+        return;
+      }
 
-    setNodes(nextState.nodes);
-    setEdges(nextState.edges);
+      setNodes(nextState.nodes);
+      setEdges(nextState.edges);
 
-    if (saveHistory) {
-      setHistory((currentHistory) => ({
-        past: [
-          ...currentHistory.past,
-          previousState,
-        ],
-        future: [],
-      }));
-    }
-  },
-  [nodes, edges]
-);
+      if (saveHistory) {
+        setHistory((currentHistory) => ({
+          past: [
+            ...currentHistory.past,
+            previousState,
+          ],
+          future: [],
+        }));
+      }
+    },
+    [nodes, edges]
+  );
 
   /*
    * ----------------------------------------
@@ -206,27 +206,27 @@ export function AutomationNodesProvider({
    */
 
   const onNodesChange = useCallback(
-  (changes: NodeChange<AutomationNode>[]) => {
-    const isDragging = changes.some(
-      (change) =>
-        change.type === "position" &&
-        change.dragging
-    );
+    (changes: NodeChange<AutomationNode>[]) => {
+      const isDragging = changes.some(
+        (change) =>
+          change.type === "position" &&
+          change.dragging
+      );
 
-    updateGraph(
-      (currentState) => ({
-        ...currentState,
+      updateGraph(
+        (currentState) => ({
+          ...currentState,
 
-        nodes: applyNodeChanges(
-          changes,
-          currentState.nodes
-        ),
-      }),
-      !isDragging
-    );
-  },
-  [updateGraph]
-);
+          nodes: applyNodeChanges(
+            changes,
+            currentState.nodes
+          ),
+        }),
+        !isDragging
+      );
+    },
+    [updateGraph]
+  );
 
   /*
    * ----------------------------------------
@@ -292,19 +292,17 @@ export function AutomationNodesProvider({
    */
 
   const addNode = useCallback(
-  (node: AutomationNode) => {
-    console.log("ADDING NODE:", node);
-
-    updateGraph((currentState) => ({
-      nodes: [
-        ...currentState.nodes,
-        node,
-      ],
-      edges: currentState.edges,
-    }));
-  },
-  [updateGraph]
-);
+    (node: AutomationNode) => {
+      updateGraph((currentState) => ({
+        nodes: [
+          ...currentState.nodes,
+          node,
+        ],
+        edges: currentState.edges,
+      }));
+    },
+    [updateGraph]
+  );
 
   /*
    * ----------------------------------------
@@ -454,27 +452,31 @@ export function AutomationNodesProvider({
        * Convert database steps into
        * React Flow nodes.
        *
-       * Adjust data mapping if your
-       * AutomationNodeData changes.
+       * `description` is nullable in the DB,
+       * so it's normalized to an empty string
+       * for the editor's AutomationNodeData.
        */
 
       const loadedNodes: AutomationNode[] =
-  stepsResult.data.map((step) => ({
-    id: step.id,
+        stepsResult.data.map(
+          (step: AutomationStep) => ({
+            id: step.id,
 
-    type: step.type,
+            type: step.type,
 
-    position: {
-      x: step.position_x,
-      y: step.position_y,
-    },
+            position: {
+              x: step.position_x,
+              y: step.position_y,
+            },
 
-    data: {
-      label: step.title,
-      description: step.description ?? "",
-      config: step.config,
-    },
-  }));
+            data: {
+              label: step.title,
+              description: step.description ?? "",
+              config: step.config,
+            },
+          })
+        );
+
       /*
        * Convert database edges into
        * React Flow edges.
@@ -571,23 +573,29 @@ export function AutomationNodesProvider({
        * --------------------------------
        * Save steps
        * --------------------------------
+       *
+       * `description` is written back here —
+       * previously this field was silently
+       * dropped on every save.
        */
 
-    const stepsToSave = nodes.map((node, index) => ({
-  id: node.id,
-  automation_id: automationId,
-  position: index,
-  position_x: node.position.x,
-  position_y: node.position.y,
-  title: node.data.label?.trim() || "Untitled step",
-  type: node.type,
-  config: node.data.config ?? {},
-}));
-
-console.log(
-  "STEPS TO SAVE:",
-  stepsToSave
-);
+      const stepsToSave = nodes.map(
+        (node, index) => ({
+          id: node.id,
+          automation_id: automationId,
+          position: index,
+          position_x: node.position.x,
+          position_y: node.position.y,
+          title:
+            node.data.label?.trim() ||
+            "Untitled step",
+          description:
+            node.data.description?.trim() ||
+            null,
+          type: node.type,
+          config: node.data.config ?? {},
+        })
+      );
 
       /*
        * If there are no nodes, delete all

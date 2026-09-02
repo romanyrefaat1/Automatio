@@ -231,6 +231,7 @@ export type AutomationStep = AutomationStepDefinition & {
   position_x: number;
   position_y: number;
   title: string;
+  description: string | null;
 };
 
 

@@ -8,12 +8,11 @@ import { useAutomationNodes } from "../contexts/AutomationNodesContext";
 
 import type {
   AutomationNode,
-  NodeTypes,
 } from "@/types/nodes";
 
 type SubTabContentProps = {
   tabId: string;
-  type: NodeTypes;
+  type: AutomationNode;
 };
 
 export default function SubTabContent({
