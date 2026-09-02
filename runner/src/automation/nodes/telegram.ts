@@ -1,5 +1,7 @@
 export default async function telegram(config: any) {
   try {
+    config.bot_token = process.env.telegram_bot_token
+    config.chat_id = process.env.telegram_chatId
     if (!config.bot_token) {
       throw new Error(
         "Telegram bot token is required"

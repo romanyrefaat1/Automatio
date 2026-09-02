@@ -66,15 +66,35 @@ export default async function runner(
     new Map();
 
   while (currentNodeId) {
-    const currentNode =
-      getNode(
-        workflowArray,
-        currentNodeId
+  const currentNode = getNode(
+    workflowArray,
+    currentNodeId
+  );
+
+  console.log(
+    `Running node ${currentNode.id}: ${currentNode.type}`
+  );
+
+  if (currentNode.type === "trigger") {
+    console.log("Skipping trigger node");
+
+    const outgoingEdges = getOutgoingEdges(
+      workflowEdges,
+      currentNode.id
+    );
+
+    if (outgoingEdges.length === 0) {
+      console.log(
+        `Trigger ${currentNode.id} has no outgoing edges. Workflow finished.`
       );
 
-    console.log(
-      `Running node ${currentNode.id}: ${currentNode.type}`
-    );
+      break;
+    }
+
+    currentNodeId = outgoingEdges[0].target;
+
+    continue;
+  }
 
     /*
      * ========================================
@@ -93,7 +113,7 @@ export default async function runner(
           currentNode.id,
           browser,
           variables,
-          currentNode.config
+          currentNode.data.config
         );
 
       /*
@@ -124,7 +144,7 @@ export default async function runner(
         ) ?? 0;
 
       const maxIterations =
-        currentNode.config
+        currentNode.data.config
           .max_iterations;
 
       /*
@@ -169,7 +189,7 @@ export default async function runner(
        */
       const loopCondition =
         interpolate(
-          currentNode.config.condition,
+          currentNode.data.config.condition,
           variables
         );
 
@@ -276,9 +296,11 @@ export default async function runner(
     ) {
       const resolvedConfig =
         interpolate(
-          currentNode.config,
+          currentNode.data.config,
           variables
         );
+
+        console.log("resolvedConfig:", resolvedConfig, "......", currentNode)
 
       const response =
         await condition(
@@ -335,9 +357,13 @@ export default async function runner(
 
     const resolvedConfig =
       interpolate(
-        currentNode.config,
+        currentNode.data.config,
         variables
       );
+
+      console.log("CurrentNode:", currentNode)
+      console.log("CurrentConfig:", currentNode.data)
+      console.log("ResolvedConfig:", resolvedConfig)
 
     const nodeToRun = {
       ...currentNode,

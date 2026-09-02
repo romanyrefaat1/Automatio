@@ -36,26 +36,27 @@ export default function SubTabContent({
   const ConfigComponent = nodeConfigComponents[type];
 
   const handleAddNode = () => {
-    const node: AutomationNode = {
-      id: crypto.randomUUID(),
+  console.log("ADDING NODE CONFIG:", tab.config);
 
-      type,
-
-      position: {
-        x: 100,
-        y: 100,
-      },
-
-      data: {
-        label: tab.label,
-        description: tab.description,
-        config: tab.config,
-      },
-    };
-
-    addNode(node);
-    removeTabById(tabId);
+  const node: AutomationNode = {
+    id: crypto.randomUUID(),
+    type,
+    position: {
+      x: 100,
+      y: 100,
+    },
+    data: {
+      label: tab.label,
+      description: tab.description,
+      config: tab.config,
+    },
   };
+
+  console.log("NODE CREATED:", node);
+
+  addNode(node);
+  removeTabById(tabId);
+};
 
   return (
     <div className="space-y-6">
@@ -105,11 +106,13 @@ export default function SubTabContent({
 
       {/* Type-specific Configuration */}
       <ConfigComponent
-        config={tab.config ?? {}}
-        onConfigChange={(config) =>
-          updateTabConfig(tabId, config)
-        }
-      />
+  config={tab.config ?? {}}
+  onConfigChange={(config) => {
+    console.log("CONFIG CHANGED:", config);
+
+    updateTabConfig(tabId, config);
+  }}
+/>
 
       {/* Add Node */}
       <Button type="button" onClick={handleAddNode}>

@@ -103,17 +103,36 @@ export function NewNodeSubTabsProvider({
   };
 
   const updateTabConfig = (id: string, config: Json) => {
-    setTabs((prev) =>
-      prev.map((tab) =>
-        tab.id === id
-          ? {
-              ...tab,
-              config,
-            }
-          : tab
-      )
-    );
-  };
+  setTabs((prev) =>
+    prev.map((tab) => {
+      if (tab.id !== id) {
+        return tab;
+      }
+
+      const existingConfig =
+        tab.config &&
+        typeof tab.config === "object" &&
+        !Array.isArray(tab.config)
+          ? tab.config
+          : {};
+
+      const nextConfig =
+        config &&
+        typeof config === "object" &&
+        !Array.isArray(config)
+          ? config
+          : {};
+
+      return {
+        ...tab,
+        config: {
+          ...existingConfig,
+          ...nextConfig,
+        },
+      };
+    })
+  );
+};
 
   const removeTabById = (id: string) => {
     setTabs((prev) => {

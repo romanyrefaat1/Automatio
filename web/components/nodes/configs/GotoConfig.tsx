@@ -12,6 +12,11 @@ import {
 
 import type { NodeConfigComponentProps } from "./index";
 
+type WaitUntil =
+  | "load"
+  | "domcontentloaded"
+  | "networkidle";
+
 export default function GotoConfig({
   config,
   onConfigChange,
@@ -20,6 +25,7 @@ export default function GotoConfig({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>URL</Label>
+
         <Input
           value={config.url ?? ""}
           onChange={(e) =>
@@ -40,10 +46,7 @@ export default function GotoConfig({
           onValueChange={(value) =>
             onConfigChange({
               ...config,
-              waitUntil: value as
-                | "load"
-                | "domcontentloaded"
-                | "networkidle",
+              waitUntil: value as WaitUntil,
             })
           }
         >
@@ -52,11 +55,17 @@ export default function GotoConfig({
           </SelectTrigger>
 
           <SelectContent>
-            <SelectItem value="load">Load</SelectItem>
+            <SelectItem value="load">
+              Load
+            </SelectItem>
+
             <SelectItem value="domcontentloaded">
               DOM Content Loaded
             </SelectItem>
-            <SelectItem value="networkidle">Network Idle</SelectItem>
+
+            <SelectItem value="networkidle">
+              Network Idle
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>

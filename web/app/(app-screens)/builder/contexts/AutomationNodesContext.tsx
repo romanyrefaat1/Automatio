@@ -569,6 +569,16 @@ export function AutomationNodesProvider({
     const supabase = createClient();
 
     try {
+
+      console.log(
+  "NODES BEFORE SAVE:",
+  nodes.map((node) => ({
+    id: node.id,
+    type: node.type,
+    config: node.data.config,
+  }))
+);
+
       /*
        * --------------------------------
        * Save steps
