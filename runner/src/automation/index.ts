@@ -1,22 +1,25 @@
 import { chromium } from "@playwright/test";
+
 import runner from "./runner";
 
-export async function index(
+export async function automationIndex(
   workflowArray: any[],
   workflowEdges: any[]
 ) {
   const browser = await chromium.launch({
-    headless: false,
+    headless: true,
   });
 
   const page = await browser.newPage();
 
-  await runner(
-    workflowArray,
-    workflowEdges,
-    browser,
-    page
-  );
-
-  browser.close()
+  try {
+    await runner(
+      workflowArray,
+      workflowEdges,
+      browser,
+      page
+    );
+  } finally {
+    await browser.close();
+  }
 }
