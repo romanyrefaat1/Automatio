@@ -15,6 +15,7 @@ import loop_node from "./nodes/loop";
 import call_chatgpt from "./nodes/call_chatgpt";
 import assert_value from "./nodes/assert_value";
 import call_api from "./nodes/call_api";
+import telegram from "./nodes/telegram";
 
 export async function dispatcher(workflowNode, browser, page) {
   switch (workflowNode.type) {
@@ -68,7 +69,11 @@ export async function dispatcher(workflowNode, browser, page) {
 
     case "call_api":
         return call_api(workflowNode.config);
-    default:
+    
+    case "telegram":
+        return telegram(workflowNode.config);
+
+  default:
       throw new Error(`Unknown workflow node type: ${workflowNode.type}`);
   }
 }

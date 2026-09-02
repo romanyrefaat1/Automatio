@@ -5,84 +5,62 @@ const start = Date.now();
 index(
   [
     {
-      id: "parallel",
-      type: "parallel",
-      config: {
-        merge_variables: true,
-      },
-    },
-
-    {
-      id: "api-1",
+      id: "api",
       type: "call_api",
       config: {
         method: "GET",
-        url: "https://httpbin.org/anything/one",
-        save_as: "response1",
+        url: "https://api.coingecko.com/api/v3/coins/bitcoin",
+        save_as: "bitcoin",
       },
     },
 
     {
-      id: "api-2",
-      type: "call_api",
-      config: {
-        method: "GET",
-        url: "https://httpbin.org/anything/two",
-        save_as: "response2",
-      },
-    },
-
-    {
-      id: "api-3",
-      type: "call_api",
-      config: {
-        method: "GET",
-        url: "https://httpbin.org/anything/three",
-        save_as: "response3",
-      },
-    },
-
-    {
-      id: "join",
+      id: "chatgpt",
       type: "call_chatgpt",
       config: {
         query: `
-Tell me whether these variables exist:
+You are creating a useful daily Telegram briefing.
 
-response1 = {{response1}}
+Here is the latest Bitcoin data retrieved from an API:
 
-response2 = {{response2}}
+{{bitcoin}}
 
-response3 = {{response3}}
+Analyze the data and create a concise briefing containing:
+
+1. Bitcoin's current price.
+2. Its 24-hour price change.
+3. Its market capitalization.
+4. One interesting observation from the data.
+5. A simple explanation of what the numbers mean.
+
+Only use information provided in the API response.
+Do not make predictions or give financial advice.
+Keep the message under 150 words.
+Use clear formatting.
+Do not mention that you are an AI.
 `,
+        save_as: "notification",
+      },
+    },
+
+    {
+      id: "telegram",
+      type: "telegram",
+      config: {
+        bot_token: "YOUR_BOT_TOKEN",
+        chat_id: "YOUR_CHAT_ID",
+        message: "{{notification}}",
       },
     },
   ],
   [
     {
-      source: "parallel",
-      target: "api-1",
+      source: "api",
+      target: "chatgpt",
     },
     {
-      source: "parallel",
-      target: "api-2",
-    },
-    {
-      source: "parallel",
-      target: "api-3",
-    },
-
-    {
-      source: "api-1",
-      target: "join",
-    },
-    {
-      source: "api-2",
-      target: "join",
-    },
-    {
-      source: "api-3",
-      target: "join",
+      source: "chatgpt",
+      target: "telegram",
     },
   ]
 ).then(() => {
