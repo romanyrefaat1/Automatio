@@ -1,56 +1,95 @@
 import { index } from "./index";
 
-async function runTest(
-  name: string,
-  workflow: any[],
-  edges: any[]
-) {
-  console.log("\n========================================");
-  console.log(`TEST: ${name}`);
-  console.log("========================================\n");
+const start = Date.now();
 
-  try {
-    await index(workflow, edges);
-    console.log(`\n✓ ${name} PASSED`);
-  } catch (error) {
-    console.error(`\n✗ ${name} FAILED`);
-    console.error(error);
-  }
-}
+index(
+  [
+    {
+      id: "parallel",
+      type: "parallel",
+      config: {
+        merge_variables: true,
+      },
+    },
 
-async function testVariableInterpolation() {
-  await runTest(
-    "Variable interpolation inside API body",
-    [
-      {
-        id: "1",
-        type: "call_chatgpt",
-        config: {
-          query: "Return only this exact word: Romany",
-          save_as: "name",
-        },
+    {
+      id: "api-1",
+      type: "call_api",
+      config: {
+        method: "GET",
+        url: "https://httpbin.org/anything/one",
+        save_as: "response1",
       },
-      {
-        id: "2",
-        type: "call_api",
-        config: {
-          method: "POST",
-          url: "https://httpbin.org/post",
-          body: {
-            username: "{{name}}",
-            message: "Hello {{name}}",
-          },
-          save_as: "response",
-        },
+    },
+
+    {
+      id: "api-2",
+      type: "call_api",
+      config: {
+        method: "GET",
+        url: "https://httpbin.org/anything/two",
+        save_as: "response2",
       },
-    ],
-    [
-      {
-        source: "1",
-        target: "2",
+    },
+
+    {
+      id: "api-3",
+      type: "call_api",
+      config: {
+        method: "GET",
+        url: "https://httpbin.org/anything/three",
+        save_as: "response3",
       },
-    ]
+    },
+
+    {
+      id: "join",
+      type: "call_chatgpt",
+      config: {
+        query: `
+Tell me whether these variables exist:
+
+response1 = {{response1}}
+
+response2 = {{response2}}
+
+response3 = {{response3}}
+`,
+      },
+    },
+  ],
+  [
+    {
+      source: "parallel",
+      target: "api-1",
+    },
+    {
+      source: "parallel",
+      target: "api-2",
+    },
+    {
+      source: "parallel",
+      target: "api-3",
+    },
+
+    {
+      source: "api-1",
+      target: "join",
+    },
+    {
+      source: "api-2",
+      target: "join",
+    },
+    {
+      source: "api-3",
+      target: "join",
+    },
+  ]
+).then(() => {
+  const elapsed =
+    (Date.now() - start) / 1000;
+
+  console.log(
+    `\nTOTAL TIME: ${elapsed.toFixed(2)} seconds`
   );
-}
-
-testVariableInterpolation();
+});
