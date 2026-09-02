@@ -3,7 +3,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Square } from "lucide-react";
 
-import type { AutomationNode } from "@/types/types";
+import type { AutomationNode } from "@/types/nodes";
 import {
   NodeField,
   NodeHeader,
@@ -14,23 +14,41 @@ import {
 export function UncheckNode({
   data,
 }: NodeProps<AutomationNode>) {
+  const config =
+    data.config &&
+    typeof data.config === "object" &&
+    !Array.isArray(data.config)
+      ? data.config as {
+          selector?: string;
+        }
+      : {};
+
   return (
     <div className={nodeBase}>
       <NodeHeader
         icon={<Square className="h-4 w-4" />}
-        title="Uncheck"
+        title={data.label || "Uncheck"}
         description="Uncheck checkbox"
       />
 
       <div className={contentBase}>
         <NodeField
           label="Selector"
-          value={data.selector || "#newsletter"}
+          value={config.selector || "#newsletter"}
         />
       </div>
 
-      <Handle type="target" position={Position.Top} id="input" />
-      <Handle type="source" position={Position.Bottom} id="output" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="input"
+      />
+
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="output"
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Globe } from "lucide-react";
 
-import type { AutomationNode } from "@/types/types";
+import type { AutomationNode } from "@/types/nodes";
 import {
   NodeField,
   NodeHeader,
@@ -14,18 +14,27 @@ import {
 export function GotoNode({
   data,
 }: NodeProps<AutomationNode>) {
+  const config =
+    data.config &&
+    typeof data.config === "object" &&
+    !Array.isArray(data.config)
+      ? data.config as {
+          url?: string;
+        }
+      : {};
+
   return (
     <div className={nodeBase}>
       <NodeHeader
         icon={<Globe className="h-4 w-4" />}
-        title="Go to URL"
+        title={data.label || "Go to URL"}
         description="Navigate browser"
       />
 
       <div className={contentBase}>
         <NodeField
           label="URL"
-          value={data.url || "https://example.com"}
+          value={config.url || "https://example.com"}
         />
       </div>
 

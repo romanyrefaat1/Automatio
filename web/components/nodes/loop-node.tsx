@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Type } from "lucide-react";
+import { Repeat } from "lucide-react";
 
 import type { AutomationNode } from "@/types/nodes";
 import {
@@ -11,36 +11,28 @@ import {
   nodeBase,
 } from "./node-components";
 
-export function FillNode({
+export function LoopNode({
   data,
 }: NodeProps<AutomationNode>) {
-  const config =
-    data.config &&
-    typeof data.config === "object" &&
-    !Array.isArray(data.config)
-      ? data.config as {
-          selector?: string;
-          value?: string;
-        }
-      : {};
+  const config = data.config;
 
   return (
     <div className={nodeBase}>
       <NodeHeader
-        icon={<Type className="h-4 w-4" />}
-        title={data.label || "Fill"}
-        description="Enter text"
+        icon={<Repeat className="h-4 w-4" />}
+        title={data.label || "Loop"}
+        description="Repeat workflow steps"
+        iconClass="bg-blue-500/10 text-blue-500"
       />
 
       <div className={contentBase}>
         <NodeField
-          label="Selector"
-          value={config.selector || "#email"}
-        />
-
-        <NodeField
-          label="Value"
-          value={config.value || "user@example.com"}
+          label="Config"
+          value={
+            config
+              ? JSON.stringify(config)
+              : "Configure loop"
+          }
         />
       </div>
 

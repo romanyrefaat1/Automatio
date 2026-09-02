@@ -20,7 +20,7 @@ import {
   type ReactNode,
 } from "react";
 
-import type { AutomationNode } from "@/types/types";
+import type { AutomationNode } from "@/types/nodes";
 import type { Tables } from "@/types/supabase-auto";
 
 import { createClient } from "@/lib/supabase/client";

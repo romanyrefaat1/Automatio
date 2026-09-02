@@ -9,7 +9,7 @@ import { useAutomationNodes } from "../contexts/AutomationNodesContext";
 import type {
   AutomationNode,
   NodeTypes,
-} from "@/types/types";
+} from "@/types/nodes";
 
 type SubTabContentProps = {
   tabId: string;

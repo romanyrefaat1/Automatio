@@ -3,8 +3,9 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Play } from "lucide-react";
 
-import type { AutomationNode } from "@/types/types";
+import type { AutomationNode } from "@/types/nodes";
 import {
+  NodeField,
   NodeHeader,
   contentBase,
   nodeBase,
@@ -13,19 +14,26 @@ import {
 export function TriggerNode({
   data,
 }: NodeProps<AutomationNode>) {
+  const config = data.config;
+
   return (
     <div className={nodeBase}>
       <NodeHeader
         icon={<Play className="h-4 w-4" />}
         title={data.label || "Trigger"}
-        description="Start automation"
-        iconClass="bg-emerald-500/10 text-emerald-500"
+        description="Start the automation"
+        iconClass="bg-green-500/10 text-green-500"
       />
 
       <div className={contentBase}>
-        <div className="text-xs text-muted-foreground">
-          Automation starts here.
-        </div>
+        <NodeField
+          label="Config"
+          value={
+            config
+              ? JSON.stringify(config)
+              : "Automation trigger"
+          }
+        />
       </div>
 
       <Handle

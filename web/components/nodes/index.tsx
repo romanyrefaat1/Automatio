@@ -20,7 +20,7 @@ import { AssertNode } from "./assert-node";
 import { ConditionNode } from "./condition-node";
 import { EndNode } from "./end-node";
 
-import type { AutomationNode } from "@/types/types";
+import type { AutomationNode } from "@/types/nodes";
 
 /* -------------------------------------------------------------------------- */
 /* Component exports                                                          */

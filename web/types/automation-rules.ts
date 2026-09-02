@@ -1,9 +1,7 @@
-import type { Database } from "@/lib/supabase/database.types";
+import { Database, Json } from "./supabase-auto";
 
 /* =========================================================
    DATABASE ROW TYPES
-   These stay connected to Supabase's generated types.
-   Do not manually edit database.types.ts.
    ========================================================= */
 
 export type AutomationRow =
@@ -62,34 +60,32 @@ export type AutomationArtifactUpdate =
 
 
 /* =========================================================
-   AUTOMATION STATES
+   DATABASE ENUM TYPES
    ========================================================= */
 
 export type AutomationStatus =
-  | "active"
-  | "paused"
-  | "archived";
-
-
-/* =========================================================
-   AUTOMATION STEP TYPES
-   ========================================================= */
+  Database["public"]["Enums"]["automation_status"];
 
 export type AutomationStepType =
-  | "goto"
-  | "click"
-  | "fill"
-  | "select"
-  | "check"
-  | "uncheck"
-  | "press"
-  | "wait"
-  | "wait_for_element"
-  | "screenshot"
-  | "extract_text"
-  | "assert_text"
-  | "condition"
-  | "end";
+  Database["public"]["Enums"]["automation_step_type"];
+
+export type AutomationScheduleType =
+  Database["public"]["Enums"]["automation_schedule_type"];
+
+export type AutomationRunStatus =
+  Database["public"]["Enums"]["automation_run_status"];
+
+export type AutomationRunTrigger =
+  Database["public"]["Enums"]["automation_run_trigger"];
+
+export type AutomationRunStepStatus =
+  Database["public"]["Enums"]["automation_run_step_status"];
+
+export type AutomationArtifactType =
+  Database["public"]["Enums"]["automation_artifact_type"];
+
+export type AutomationTriggerType =
+  Database["public"]["Enums"]["automation_trigger_type"];
 
 
 /* =========================================================
@@ -182,8 +178,6 @@ export type AssertTextConfig = {
 
 /* =========================================================
    STEP CONFIG MAP
-   IMPORTANT:
-   The key determines the exact config type.
    ========================================================= */
 
 export type AutomationStepConfigMap = {
@@ -200,21 +194,22 @@ export type AutomationStepConfigMap = {
   extract_text: ExtractTextConfig;
   assert_text: AssertTextConfig;
   condition: ConditionConfig;
+
+  //
+  loop: Json;
+  parallel: Json;
+  call_api: Json;
+  call_chatgpt: Json;
+  telegram: Json;
+  trigger: Json;
+  assert_value: Json;
+
   end: Record<string, never>;
-};
-
-export type ConditionResult = {
-  passed: boolean;
-};
-
-export type EndResult = {
-  completed: true;
 };
 
 
 /* =========================================================
    STRONGLY TYPED AUTOMATION STEP
-   This prevents invalid type/config combinations.
    ========================================================= */
 
 export type AutomationStepDefinition = {
@@ -233,21 +228,14 @@ export type AutomationStep = AutomationStepDefinition & {
   id: string;
   automation_id: string;
   position: number;
+  position_x: number;
+  position_y: number;
   title: string;
 };
 
 
 /* =========================================================
-   SCHEDULE STATES
-   ========================================================= */
-
-export type AutomationScheduleType =
-  | "once"
-  | "interval";
-
-
-/* =========================================================
-   COMPLETE SCHEDULE TYPES
+   SCHEDULE DEFINITIONS
    ========================================================= */
 
 export type OnceSchedule = {
@@ -265,45 +253,6 @@ export type IntervalSchedule = {
 export type AutomationScheduleDefinition =
   | OnceSchedule
   | IntervalSchedule;
-
-
-/* =========================================================
-   RUN STATES
-   ========================================================= */
-
-export type AutomationRunStatus =
-  | "queued"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
-
-
-export type AutomationRunTrigger =
-  | "manual"
-  | "schedule";
-
-
-/* =========================================================
-   RUN STEP STATES
-   ========================================================= */
-
-export type AutomationRunStepStatus =
-  | "pending"
-  | "running"
-  | "completed"
-  | "failed"
-  | "skipped";
-
-
-/* =========================================================
-   ARTIFACT STATES
-   ========================================================= */
-
-export type AutomationArtifactType =
-  | "screenshot"
-  | "download"
-  | "file";
 
 
 /* =========================================================
@@ -358,6 +307,14 @@ export type AssertTextResult = {
   passed: true;
 };
 
+export type ConditionResult = {
+  passed: boolean;
+};
+
+export type EndResult = {
+  completed: true;
+};
+
 
 /* =========================================================
    STEP RESULT MAP
@@ -377,6 +334,19 @@ export type AutomationStepResultMap = {
   extract_text: ExtractTextResult;
   assert_text: AssertTextResult;
   condition: ConditionResult;
+
+  /*
+   * Result contracts for these need to be defined from
+   * the runner implementation.
+   */
+  loop: Json;
+  parallel: Json;
+  call_api: Json;
+  call_chatgpt: Json;
+  telegram: Json;
+  trigger: Json;
+  assert_value: Json;
+
   end: EndResult;
 };
 

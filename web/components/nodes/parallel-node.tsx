@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Type } from "lucide-react";
+import { GitFork } from "lucide-react";
 
 import type { AutomationNode } from "@/types/nodes";
 import {
@@ -11,36 +11,28 @@ import {
   nodeBase,
 } from "./node-components";
 
-export function FillNode({
+export function ParallelNode({
   data,
 }: NodeProps<AutomationNode>) {
-  const config =
-    data.config &&
-    typeof data.config === "object" &&
-    !Array.isArray(data.config)
-      ? data.config as {
-          selector?: string;
-          value?: string;
-        }
-      : {};
+  const config = data.config;
 
   return (
     <div className={nodeBase}>
       <NodeHeader
-        icon={<Type className="h-4 w-4" />}
-        title={data.label || "Fill"}
-        description="Enter text"
+        icon={<GitFork className="h-4 w-4" />}
+        title={data.label || "Parallel"}
+        description="Run branches in parallel"
+        iconClass="bg-indigo-500/10 text-indigo-500"
       />
 
       <div className={contentBase}>
         <NodeField
-          label="Selector"
-          value={config.selector || "#email"}
-        />
-
-        <NodeField
-          label="Value"
-          value={config.value || "user@example.com"}
+          label="Config"
+          value={
+            config
+              ? JSON.stringify(config)
+              : "Configure parallel branches"
+          }
         />
       </div>
 

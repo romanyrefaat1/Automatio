@@ -19,7 +19,7 @@ import {
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
 import AutomationTopInfo from "./AutomationTopInfo";
 import CanvasSurviveButtons from "./CanvasSurviveButtons";
-import { nodeTypes } from "@/types/types";
+import { nodeTypes } from "@/types/nodes";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
 
 export default function AutomationCanvas() {

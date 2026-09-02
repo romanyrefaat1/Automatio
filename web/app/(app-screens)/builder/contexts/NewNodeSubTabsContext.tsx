@@ -1,6 +1,6 @@
 "use client";
 
-import { NodeTypes } from "@/types/types";
+import { NodeTypes } from "@/types/nodes";
 import {
   createContext,
   useContext,

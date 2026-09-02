@@ -16,25 +16,20 @@ import {
   ExtractTextNode,
   AssertNode,
   ConditionNode,
+  LoopNode,
+  ParallelNode,
+  CallApiNode,
+  CallChatGPTNode,
+  TelegramNode,
+  AssertValueNode,
   EndNode,
 } from "@/components/nodes";
+import { Json } from "./supabase-auto";
 
 export type AutomationNodeData = {
   label: string;
   description?: string;
-
-  url?: string;
-  selector?: string;
-  value?: string;
-  option?: string;
-  key?: string;
-
-  duration?: number;
-
-  variable?: string;
-  expected?: string;
-
-  condition?: string;
+  config?: Json;
 
   [key: string]: unknown;
 };
@@ -54,6 +49,12 @@ export type AutomationNodeType =
   | "extract_text"
   | "assert_text"
   | "condition"
+  | "loop"
+  | "parallel"
+  | "call_api"
+  | "call_chatgpt"
+  | "telegram"
+  | "assert_value"
   | "end";
 
 export type AutomationNode = Node<
@@ -78,7 +79,6 @@ export type NodeTypes = Record<
 
 export const nodeTypes: NodeTypes = {
   trigger: TriggerNode,
-
   goto: GotoNode,
   click: ClickNode,
   fill: FillNode,
@@ -86,14 +86,17 @@ export const nodeTypes: NodeTypes = {
   check: CheckNode,
   uncheck: UncheckNode,
   press: PressNode,
-
   wait: WaitNode,
   wait_for_element: WaitForElementNode,
-
   screenshot: ScreenshotNode,
   extract_text: ExtractTextNode,
   assert_text: AssertNode,
-
   condition: ConditionNode,
+  loop: LoopNode,
+  parallel: ParallelNode,
+  call_api: CallApiNode,
+  call_chatgpt: CallChatGPTNode,
+  telegram: TelegramNode,
+  assert_value: AssertValueNode,
   end: EndNode,
 };

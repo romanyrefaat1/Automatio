@@ -16,7 +16,7 @@ import AssertConfig from "./AssertTextConfig";
 import ConditionConfig from "./ConditionConfig";
 import EndConfig from "./EndConfig";
 
-import type { NodeTypes } from "@/types/types";
+import type { NodeTypes } from "@/types/nodes";
 
 export const nodeConfigComponents: Record<
   NodeTypes,
