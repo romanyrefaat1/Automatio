@@ -12,28 +12,36 @@ import {
 
 import type { NodeConfigComponentProps } from "./index";
 
-export default function AssertTextConfig({
+/*
+ * BEST GUESS — confirm field names against worker's
+ * nodes/assert_value.ts implementation. Assumes this
+ * asserts on a previously saved variable (e.g. from
+ * extract_text / call_api / call_chatgpt's save_as),
+ * as opposed to assert_text which reads live DOM text.
+ */
+
+export default function AssertValueConfig({
   config,
   onConfigChange,
-}: NodeConfigComponentProps<"assert_text">) {
+}: NodeConfigComponentProps<"assert_value">) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Selector</Label>
+        <Label>Variable</Label>
         <Input
-          value={config.selector ?? ""}
+          value={config.variable ?? ""}
           onChange={(e) =>
             onConfigChange({
               ...config,
-              selector: e.target.value,
+              variable: e.target.value,
             })
           }
-          placeholder="h1"
+          placeholder="username"
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Expected Text</Label>
+        <Label>Expected Value</Label>
         <Input
           value={config.expected ?? ""}
           onChange={(e) =>
@@ -42,19 +50,23 @@ export default function AssertTextConfig({
               expected: e.target.value,
             })
           }
-          placeholder="Welcome back"
+          placeholder="admin"
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Match</Label>
+        <Label>Operator</Label>
 
         <Select
-          value={config.match ?? "contains"}
+          value={config.operator ?? "equals"}
           onValueChange={(value) =>
             onConfigChange({
               ...config,
-              match: value as "exact" | "contains",
+              operator: value as
+                | "equals"
+                | "not_equals"
+                | "contains"
+                | "not_contains",
             })
           }
         >
@@ -63,8 +75,12 @@ export default function AssertTextConfig({
           </SelectTrigger>
 
           <SelectContent>
-            <SelectItem value="exact">Exact</SelectItem>
+            <SelectItem value="equals">Equals</SelectItem>
+            <SelectItem value="not_equals">Does not equal</SelectItem>
             <SelectItem value="contains">Contains</SelectItem>
+            <SelectItem value="not_contains">
+              Does not contain
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { ComponentType } from "react";
 import type { NodeProps } from "@xyflow/react";
 
 import { TriggerNode } from "./trigger-node";
@@ -17,10 +16,16 @@ import { WaitForElementNode } from "./wait-for-element-node";
 import { ScreenshotNode } from "./screenshot-node";
 import { ExtractTextNode } from "./extract-text-node";
 import { AssertNode } from "./assert-node";
+import { AssertValueNode } from "./assert-value-node";
 import { ConditionNode } from "./condition-node";
+import { LoopNode } from "./loop-node";
+import { ParallelNode } from "./parallel-node";
+import { CallApiNode } from "./call-api-node";
+import { CallChatGPTNode } from "./call-chatgpt-node";
+import { TelegramNode } from "./telegram-node";
 import { EndNode } from "./end-node";
 
-import type { AutomationNode } from "@/types/nodes";
+import type { AutomationNodeType } from "@/types/nodes";
 
 /* -------------------------------------------------------------------------- */
 /* Component exports                                                          */
@@ -38,8 +43,14 @@ export { WaitNode } from "./wait-node";
 export { WaitForElementNode } from "./wait-for-element-node";
 export { ScreenshotNode } from "./screenshot-node";
 export { ExtractTextNode } from "./extract-text-node";
-export { AssertNode } from "./assert-node";
+export { AssertNode as AssertTextNode } from "./assert-node";
+export { AssertValueNode } from "./assert-value-node";
 export { ConditionNode } from "./condition-node";
+export { LoopNode } from "./loop-node";
+export { ParallelNode } from "./parallel-node";
+export { CallApiNode } from "./call-api-node";
+export { CallChatGPTNode } from "./call-chatgpt-node";
+export { TelegramNode } from "./telegram-node";
 export { EndNode } from "./end-node";
 
 /* -------------------------------------------------------------------------- */
@@ -52,11 +63,10 @@ export type AutomationNodeConfig = {
   component: ReactNode;
 };
 
-export const nodes: Record<string, AutomationNodeConfig> = {
+export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
   trigger: {
     title: "Trigger",
     description: "Start automation",
-
     component: (
       <TriggerNode
         data={{
@@ -69,7 +79,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   goto: {
     title: "Go to URL",
     description: "Navigate browser",
-
     component: (
       <GotoNode
         data={{
@@ -82,7 +91,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   click: {
     title: "Click",
     description: "Click an element",
-
     component: (
       <ClickNode
         data={{
@@ -95,7 +103,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   fill: {
     title: "Fill",
     description: "Enter text",
-
     component: (
       <FillNode
         data={{
@@ -109,7 +116,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   select: {
     title: "Select",
     description: "Select an option",
-
     component: (
       <SelectNode
         data={{
@@ -123,7 +129,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   check: {
     title: "Check",
     description: "Check checkbox",
-
     component: (
       <CheckNode
         data={{
@@ -136,7 +141,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   uncheck: {
     title: "Uncheck",
     description: "Uncheck checkbox",
-
     component: (
       <UncheckNode
         data={{
@@ -149,7 +153,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   press: {
     title: "Press Key",
     description: "Press keyboard key",
-
     component: (
       <PressNode
         data={{
@@ -162,7 +165,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   wait: {
     title: "Wait",
     description: "Pause execution",
-
     component: (
       <WaitNode
         data={{
@@ -172,10 +174,9 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 
-  waitForElement: {
+  wait_for_element: {
     title: "Wait for Element",
     description: "Wait until element exists",
-
     component: (
       <WaitForElementNode
         data={{
@@ -189,7 +190,6 @@ export const nodes: Record<string, AutomationNodeConfig> = {
   screenshot: {
     title: "Screenshot",
     description: "Capture page",
-
     component: (
       <ScreenshotNode
         data={{
@@ -199,10 +199,9 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 
-  extractText: {
+  extract_text: {
     title: "Extract Text",
     description: "Read text from element",
-
     component: (
       <ExtractTextNode
         data={{
@@ -213,10 +212,9 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 
-  assert: {
-    title: "Assert",
-    description: "Verify expected result",
-
+  assert_text: {
+    title: "Assert Text",
+    description: "Verify text content",
     component: (
       <AssertNode
         data={{
@@ -227,10 +225,21 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 
+  assert_value: {
+    title: "Assert Value",
+    description: "Verify a value",
+    component: (
+      <AssertValueNode
+        data={{
+          label: "Assert Value",
+        }}
+      />
+    ),
+  },
+
   condition: {
     title: "Condition",
     description: "Branch workflow",
-
     component: (
       <ConditionNode
         data={{
@@ -240,10 +249,69 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 
+  loop: {
+    title: "Loop",
+    description: "Repeat workflow steps",
+    component: (
+      <LoopNode
+        data={{
+          label: "Loop",
+        }}
+      />
+    ),
+  },
+
+  parallel: {
+    title: "Parallel",
+    description: "Run branches concurrently",
+    component: (
+      <ParallelNode
+        data={{
+          label: "Parallel",
+        }}
+      />
+    ),
+  },
+
+  call_api: {
+    title: "Call API",
+    description: "Make an HTTP request",
+    component: (
+      <CallApiNode
+        data={{
+          label: "Call API",
+        }}
+      />
+    ),
+  },
+
+  call_chatgpt: {
+    title: "Call ChatGPT",
+    description: "Run an AI request",
+    component: (
+      <CallChatGPTNode
+        data={{
+          label: "Call ChatGPT",
+        }}
+      />
+    ),
+  },
+
+  telegram: {
+    title: "Telegram",
+    description: "Send Telegram message",
+    component: (
+      <TelegramNode
+        data={{
+          label: "Telegram",
+        }}
+      />
+    ),
+  },
+
   end: {
     title: "End",
     description: "Finish automation",
-
     component: (
       <EndNode
         data={{
@@ -253,4 +321,3 @@ export const nodes: Record<string, AutomationNodeConfig> = {
     ),
   },
 };
-

@@ -2,58 +2,62 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 import type { NodeConfigComponentProps } from "./index";
 
-export default function FillConfig({
+/*
+ * BEST GUESS — confirm field names against worker's
+ * nodes/call_chatgpt.ts implementation (called with
+ * (workflowNode.config, browser)).
+ */
+
+export default function CallChatGPTConfig({
   config,
   onConfigChange,
-}: NodeConfigComponentProps<"fill">) {
+}: NodeConfigComponentProps<"call_chatgpt">) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Selector</Label>
-        <Input
-          value={config.selector ?? ""}
+        <Label>Prompt</Label>
+        <Textarea
+          value={config.prompt ?? ""}
           onChange={(e) =>
             onConfigChange({
               ...config,
-              selector: e.target.value,
+              prompt: e.target.value,
             })
           }
-          placeholder="input[name='email']"
+          placeholder="Summarize the page content..."
+          rows={4}
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Value</Label>
+        <Label>Model</Label>
         <Input
-          value={config.value ?? ""}
+          value={config.model ?? ""}
           onChange={(e) =>
             onConfigChange({
               ...config,
-              value: e.target.value,
+              model: e.target.value,
             })
           }
-          placeholder="Enter value..."
+          placeholder="gpt-4o"
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Timeout</Label>
+        <Label>Save Response As</Label>
         <Input
-          type="number"
-          min={0}
-          value={config.timeout ?? ""}
+          value={config.save_as ?? ""}
           onChange={(e) =>
             onConfigChange({
               ...config,
-              timeout: e.target.value
-                ? Number(e.target.value)
-                : undefined,
+              save_as: e.target.value,
             })
           }
-          placeholder="10000"
+          placeholder="summary"
         />
       </div>
     </div>

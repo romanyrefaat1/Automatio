@@ -1,24 +1,30 @@
 import type { ReactNode } from "react";
 import { useNewNodeSubTabsContext } from "../contexts/NewNodeSubTabsContext";
 
+import type { AutomationNodeType } from "@/types/nodes";
+import type { AutomationNodeData } from "@/types/nodes";
+
 type AddNodeButtonProps = {
+  type: AutomationNodeType;
   title: string;
   description: string;
   preview: ReactNode;
+  defaultData?: Partial<AutomationNodeData>;
 };
 
 export default function AddNodeButton({
+  type,
   title,
   description,
-  type,
   preview,
 }: AddNodeButtonProps) {
-    const {addTab} = useNewNodeSubTabsContext()
+  const { addTab } = useNewNodeSubTabsContext();
+
   return (
     <button
       type="button"
-      onClick={()=> {
-        addTab(type)
+      onClick={() => {
+        addTab(type);
       }}
       className="w-full text-left bg-muted p-3 rounded-xl"
     >
@@ -31,8 +37,6 @@ export default function AddNodeButton({
           <p className="text-xs text-muted-foreground">
             {description}
           </p>
-
-          
         </div>
 
         {/* <div className="pointer-events-none">

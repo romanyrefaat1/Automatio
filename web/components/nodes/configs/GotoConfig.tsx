@@ -10,18 +10,43 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function GotoConfig() {
+import type { NodeConfigComponentProps } from "./index";
+
+export default function GotoConfig({
+  config,
+  onConfigChange,
+}: NodeConfigComponentProps<"goto">) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>URL</Label>
-        <Input placeholder="https://example.com" />
+        <Input
+          value={config.url ?? ""}
+          onChange={(e) =>
+            onConfigChange({
+              ...config,
+              url: e.target.value,
+            })
+          }
+          placeholder="https://example.com"
+        />
       </div>
 
       <div className="space-y-2">
         <Label>Wait Until</Label>
 
-        <Select defaultValue="load">
+        <Select
+          value={config.waitUntil ?? "load"}
+          onValueChange={(value) =>
+            onConfigChange({
+              ...config,
+              waitUntil: value as
+                | "load"
+                | "domcontentloaded"
+                | "networkidle",
+            })
+          }
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>

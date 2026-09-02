@@ -1,6 +1,5 @@
 "use client";
 
-import { NodeTypes } from "@/types/nodes";
 import {
   createContext,
   useContext,
@@ -8,12 +7,36 @@ import {
   type ReactNode,
 } from "react";
 
+import type { AutomationNodeType } from "@/types/nodes";
+import type { Json } from "@/types/supabase-auto";
+
+/*
+ * NOTE: previously imported `NodeTypes` from
+ * `@/types/nodes` and used it as the node-type string
+ * union. `NodeTypes` there is actually
+ * `Record<AutomationNodeType, Component>` — the React Flow
+ * component map, not a string union — so `type: NodeTypes`
+ * on Tab was structurally wrong (would only "work" if
+ * TypeScript wasn't strictly checking it, or would produce
+ * confusing errors). Using AutomationNodeType directly,
+ * which is the actual string union and lives alongside the
+ * step config shapes in types/automation.ts.
+ *
+ * `config` was `unknown`, which meant every consumer
+ * (SubTabContent's ConfigComponent, updateTabConfig) had to
+ * either cast or fight the type checker. Typed as `Json`
+ * (same type Supabase uses for automation_steps.config) so
+ * it round-trips cleanly to the DB; individual config
+ * components narrow it further via
+ * Partial<AutomationStepConfigMap[T]>.
+ */
+
 type Tab = {
   id: string;
-  type: NodeTypes;
+  type: AutomationNodeType;
   label: string;
   description: string;
-  config: unknown;
+  config: Json;
 };
 
 type NewNodeSubTabsContextType = {
@@ -21,14 +44,14 @@ type NewNodeSubTabsContextType = {
   activeTab: string | undefined;
   setActiveTab: (id: string) => void;
 
-  addTab: (type: NodeTypes) => void;
+  addTab: (type: AutomationNodeType) => void;
 
   updateTab: (
     id: string,
     updates: Partial<Pick<Tab, "label" | "description">>
   ) => void;
 
-  updateTabConfig: (id: string, config: unknown) => void;
+  updateTabConfig: (id: string, config: Json) => void;
   removeTabById: (id: string) => void;
 };
 
@@ -43,25 +66,25 @@ export function NewNodeSubTabsProvider({
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeTab, setActiveTab] = useState<string>("default");
 
-  const addTab = (type: NodeTypes) => {
-  setTabs((prev) => {
-    const count = prev.filter((tab) => tab.type === type).length + 1;
+  const addTab = (type: AutomationNodeType) => {
+    setTabs((prev) => {
+      const count = prev.filter((tab) => tab.type === type).length + 1;
 
-    return [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        type,
-        label: `${type.slice(0, 1).toUpperCase()}${type.slice(1)} ${count}`,
-        description: "",
-        config: {},
-      },
-    ];
-  });
+      return [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          type,
+          label: `${type.slice(0, 1).toUpperCase()}${type.slice(1)} ${count}`,
+          description: "",
+          config: {},
+        },
+      ];
+    });
 
-  // Always go back to Add Nodes after creating a tab
-  setActiveTab("default");
-};
+    // Always go back to Add Nodes after creating a tab
+    setActiveTab("default");
+  };
 
   const updateTab = (
     id: string,
@@ -79,7 +102,7 @@ export function NewNodeSubTabsProvider({
     );
   };
 
-  const updateTabConfig = (id: string, config: unknown) => {
+  const updateTabConfig = (id: string, config: Json) => {
     setTabs((prev) =>
       prev.map((tab) =>
         tab.id === id

@@ -14,17 +14,17 @@ import {
   WaitForElementNode,
   ScreenshotNode,
   ExtractTextNode,
-  AssertNode,
+  AssertTextNode,
   ConditionNode,
-  LoopNode,
-  ParallelNode,
-  CallApiNode,
-  CallChatGPTNode,
-  TelegramNode,
-  AssertValueNode,
   EndNode,
 } from "@/components/nodes";
 import { Json } from "./supabase-auto";
+import { LoopNode } from "@/components/nodes/loop-node";
+import { ParallelNode } from "@/components/nodes/parallel-node";
+import { CallApiNode } from "@/components/nodes/call-api-node";
+import { CallChatGPTNode } from "@/components/nodes/call-chatgpt-node";
+import { TelegramNode } from "@/components/nodes/telegram-node";
+import { AssertValueNode } from "@/components/nodes/assert-value-node";
 
 export type AutomationNodeData = {
   label: string;
@@ -90,7 +90,7 @@ export const nodeTypes: NodeTypes = {
   wait_for_element: WaitForElementNode,
   screenshot: ScreenshotNode,
   extract_text: ExtractTextNode,
-  assert_text: AssertNode,
+  assert_text: AssertTextNode,
   condition: ConditionNode,
   loop: LoopNode,
   parallel: ParallelNode,

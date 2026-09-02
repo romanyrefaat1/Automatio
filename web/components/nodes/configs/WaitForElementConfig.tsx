@@ -10,18 +10,44 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export default function WaitForElementConfig() {
+import type { NodeConfigComponentProps } from "./index";
+
+export default function WaitForElementConfig({
+  config,
+  onConfigChange,
+}: NodeConfigComponentProps<"wait_for_element">) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Selector</Label>
-        <Input placeholder="#dashboard" />
+        <Input
+          value={config.selector ?? ""}
+          onChange={(e) =>
+            onConfigChange({
+              ...config,
+              selector: e.target.value,
+            })
+          }
+          placeholder="#dashboard"
+        />
       </div>
 
       <div className="space-y-2">
         <Label>State</Label>
 
-        <Select defaultValue="visible">
+        <Select
+          value={config.state ?? "visible"}
+          onValueChange={(value) =>
+            onConfigChange({
+              ...config,
+              state: value as
+                | "attached"
+                | "detached"
+                | "visible"
+                | "hidden",
+            })
+          }
+        >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -37,7 +63,20 @@ export default function WaitForElementConfig() {
 
       <div className="space-y-2">
         <Label>Timeout</Label>
-        <Input type="number" placeholder="10000" min={0} />
+        <Input
+          type="number"
+          min={0}
+          value={config.timeout ?? ""}
+          onChange={(e) =>
+            onConfigChange({
+              ...config,
+              timeout: e.target.value
+                ? Number(e.target.value)
+                : undefined,
+            })
+          }
+          placeholder="10000"
+        />
       </div>
     </div>
   );

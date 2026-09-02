@@ -6,13 +6,12 @@ import { nodeConfigComponents } from "@/components/nodes/configs";
 import { useNewNodeSubTabsContext } from "../contexts/NewNodeSubTabsContext";
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
 
-import type {
-  AutomationNode,
-} from "@/types/nodes";
+import type { AutomationNode } from "@/types/nodes";
+import type { AutomationNodeType } from "@/types/nodes";
 
 type SubTabContentProps = {
   tabId: string;
-  type: AutomationNode;
+  type: AutomationNodeType;
 };
 
 export default function SubTabContent({
@@ -37,28 +36,26 @@ export default function SubTabContent({
   const ConfigComponent = nodeConfigComponents[type];
 
   const handleAddNode = () => {
-  const node: AutomationNode = {
-    id: crypto.randomUUID(),
+    const node: AutomationNode = {
+      id: crypto.randomUUID(),
 
-    type,
+      type,
 
-    position: {
-      x: 100,
-      y: 100,
-    },
+      position: {
+        x: 100,
+        y: 100,
+      },
 
-    data: {
-      label: tab.label,
-      description: tab.description,
-      config: tab.config,
-    },
+      data: {
+        label: tab.label,
+        description: tab.description,
+        config: tab.config,
+      },
+    };
+
+    addNode(node);
+    removeTabById(tabId);
   };
-
-  console.log("ADDING NODE:", node);
-
-  addNode(node);
-  removeTabById(tabId);
-};
 
   return (
     <div className="space-y-6">
@@ -108,25 +105,14 @@ export default function SubTabContent({
 
       {/* Type-specific Configuration */}
       <ConfigComponent
-  name={tab.label}
-  description={tab.description}
-  config={tab.config}
-  onNameChange={(name) =>
-    updateTab(tabId, { label: name })
-  }
-  onDescriptionChange={(description) =>
-    updateTab(tabId, { description })
-  }
-  onConfigChange={(config) =>
-    updateTabConfig(tabId, config)
-  }
-/>
+        config={tab.config ?? {}}
+        onConfigChange={(config) =>
+          updateTabConfig(tabId, config)
+        }
+      />
 
       {/* Add Node */}
-      <Button
-        type="button"
-        onClick={handleAddNode}
-      >
+      <Button type="button" onClick={handleAddNode}>
         Add Node
       </Button>
     </div>
