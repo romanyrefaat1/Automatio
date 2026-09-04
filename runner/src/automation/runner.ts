@@ -5,6 +5,10 @@ import condition from "./nodes/condition";
 import parallel from "./nodes/parallel";
 import interpolate from "./nodes/helper/interpolate";
 import type { WorkflowVariables } from "./nodes/helper/variables";
+import { supabase } from "../supabase/supabase";
+import { config } from "dotenv";
+import { decryptSecret } from "./nodes/helper/telegram/telegram-security";
+import telegram from "./nodes/telegram";
 
 function getNode(
   workflowArray: any[],
@@ -348,6 +352,110 @@ export default async function runner(
 
       continue;
     }
+
+    /*
+     * ========================================
+     * Telegram NODE
+     * ========================================
+     */
+
+    if (currentNode.type === "telegram") {
+  console.log("Telegram from runner", currentNode);
+
+  const telegramConfig = currentNode.data.config;
+  const integrationId = telegramConfig.integration_id;
+
+  if (!integrationId) {
+    throw new Error(
+      `Telegram node ${currentNode.id} is missing integration_id`
+    );
+  }
+
+  const { data: integration, error } = await supabase
+    .from("integrations")
+    .select("id, type, name, config, secret")
+    .eq("id", integrationId)
+    .single();
+
+  if (error) {
+    throw new Error(
+      `Failed to load Telegram integration: ${error.message}`
+    );
+  }
+
+  if (!integration) {
+    throw new Error(
+      `Telegram integration ${integrationId} not found`
+    );
+  }
+
+  if (integration.type !== "telegram") {
+    throw new Error(
+      `Integration ${integrationId} is not a Telegram integration`
+    );
+  }
+
+  if (!integration.secret) {
+    throw new Error(
+      `Telegram integration ${integrationId} has no bot token`
+    );
+  }
+
+  const chatId = integration.config?.chat_id;
+
+  if (!chatId) {
+    throw new Error(
+      `Telegram integration ${integrationId} is missing chat_id`
+    );
+  }
+
+  const botToken = decryptSecret(integration.secret);
+
+  const resolvedConfig = interpolate(
+    {
+      ...telegramConfig,
+      chat_id: chatId,
+    },
+    variables
+  );
+
+  const response = await telegram(
+    resolvedConfig,
+    botToken
+  );
+
+  console.log("Telegram response:", response);
+
+  if (!response.success) {
+    throw new Error(
+      `Telegram node ${currentNode.id} failed`
+    );
+  }
+
+  if (response.save_as) {
+    variables.set(
+      response.save_as,
+      response.data
+    );
+  }
+
+  const outgoingEdges = getOutgoingEdges(
+    workflowEdges,
+    currentNode.id
+  );
+
+  if (outgoingEdges.length === 0) {
+    console.log(
+      `Telegram node ${currentNode.id} has no outgoing edges. Workflow finished.`
+    );
+
+    break;
+  }
+
+  currentNodeId = outgoingEdges[0].target;
+
+  continue;
+}
 
     /*
      * ========================================

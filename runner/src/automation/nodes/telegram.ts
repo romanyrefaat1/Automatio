@@ -1,26 +1,22 @@
-export default async function telegram(config: any) {
+export default async function telegram(
+  config: any,
+  botToken: string
+) {
   try {
-    config.bot_token = process.env.telegram_bot_token
-    config.chat_id = process.env.telegram_chatId
-    if (!config.bot_token) {
-      throw new Error(
-        "Telegram bot token is required"
-      );
+    if (!botToken) {
+      throw new Error("Telegram bot token is required");
     }
 
     if (!config.chat_id) {
-      throw new Error(
-        "Telegram chat ID is required"
-      );
+      throw new Error("Telegram chat ID is required");
     }
 
     if (!config.message) {
-      throw new Error(
-        "Telegram message is required"
-      );
+      throw new Error("Telegram message is required");
     }
 
-    const url = `https://api.telegram.org/bot${config.bot_token}/sendMessage`;
+    const url =
+      `https://api.telegram.org/bot${botToken}/sendMessage`;
 
     const response = await fetch(url, {
       method: "POST",

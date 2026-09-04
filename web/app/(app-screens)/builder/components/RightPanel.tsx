@@ -27,13 +27,13 @@ export default function RightPanel() {
             {/* Sub tabs */}
             <NewNodes />   
         </TabsContent>
-
+{/* 
         <TabsContent
           value="password"
           className="min-h-0 flex-1 overflow-auto"
         >
           Change your password here.
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );

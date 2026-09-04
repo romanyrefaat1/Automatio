@@ -62,7 +62,7 @@ export default function SubTabContent({
     <div className="space-y-6">
       {/* Common Node Information */}
       <div className="space-y-4">
-        <div className="space-y-2">
+        {tab.type !=="telegram" && <div className="space-y-2">
           <label
             htmlFor={`node-name-${tabId}`}
             className="text-sm font-medium"
@@ -81,7 +81,7 @@ export default function SubTabContent({
             placeholder="Enter node name"
           />
         </div>
-
+          }
         <div className="space-y-2">
           <label
             htmlFor={`node-description-${tabId}`}
