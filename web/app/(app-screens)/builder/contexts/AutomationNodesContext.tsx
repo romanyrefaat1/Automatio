@@ -206,7 +206,9 @@ export function AutomationNodesProvider({
    */
 
   const onNodesChange = useCallback(
-    (changes: NodeChange<AutomationNode>[]) => {
+    (
+      changes: NodeChange<AutomationNode>[]
+    ) => {
       const isDragging = changes.some(
         (change) =>
           change.type === "position" &&
@@ -298,6 +300,7 @@ export function AutomationNodesProvider({
           ...currentState.nodes,
           node,
         ],
+
         edges: currentState.edges,
       }));
     },
@@ -313,15 +316,17 @@ export function AutomationNodesProvider({
   const removeNode = useCallback(
     (nodeId: string) => {
       updateGraph((currentState) => ({
-        nodes: currentState.nodes.filter(
-          (node) => node.id !== nodeId
-        ),
+        nodes:
+          currentState.nodes.filter(
+            (node) => node.id !== nodeId
+          ),
 
-        edges: currentState.edges.filter(
-          (edge) =>
-            edge.source !== nodeId &&
-            edge.target !== nodeId
-        ),
+        edges:
+          currentState.edges.filter(
+            (edge) =>
+              edge.source !== nodeId &&
+              edge.target !== nodeId
+          ),
       }));
     },
     [updateGraph]
@@ -409,144 +414,144 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    */
 
-  const fetchGraph = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const fetchGraph = useCallback(
+    async () => {
+      setLoading(true);
+      setError(null);
 
-    const supabase = createClient();
+      const supabase = createClient();
 
-    try {
-      const [
-        stepsResult,
-        edgesResult,
-      ] = await Promise.all([
-        supabase
-          .from("automation_steps")
-          .select("*")
-          .eq(
-            "automation_id",
-            automationId
-          )
-          .order("position", {
-            ascending: true,
-          }),
+      try {
+        const [
+          stepsResult,
+          edgesResult,
+        ] = await Promise.all([
+          supabase
+            .from("automation_steps")
+            .select("*")
+            .eq(
+              "automation_id",
+              automationId
+            )
+            .order("position", {
+              ascending: true,
+            }),
 
-        supabase
-          .from("automation_edges")
-          .select("*")
-          .eq(
-            "automation_id",
-            automationId
-          ),
-      ]);
+          supabase
+            .from("automation_edges")
+            .select("*")
+            .eq(
+              "automation_id",
+              automationId
+            ),
+        ]);
 
-      if (stepsResult.error) {
-        throw stepsResult.error;
-      }
+        if (stepsResult.error) {
+          throw stepsResult.error;
+        }
 
-      if (edgesResult.error) {
-        throw edgesResult.error;
-      }
+        if (edgesResult.error) {
+          throw edgesResult.error;
+        }
 
-      /*
-       * Convert database steps into
-       * React Flow nodes.
-       *
-       * `description` is nullable in the DB,
-       * so it's normalized to an empty string
-       * for the editor's AutomationNodeData.
-       */
+        /*
+         * Convert database steps into
+         * React Flow nodes.
+         */
 
-      const loadedNodes: AutomationNode[] =
-        stepsResult.data.map(
-          (step: AutomationStep) => ({
-            id: step.id,
+        const loadedNodes: AutomationNode[] =
+          stepsResult.data.map(
+            (step: AutomationStep) => ({
+              id: step.id,
 
-            type: step.type,
+              type: step.type,
 
-            position: {
-              x: step.position_x,
-              y: step.position_y,
-            },
+              position: {
+                x: step.position_x,
+                y: step.position_y,
+              },
 
-            data: {
-              label: step.title,
-              description: step.description ?? "",
-              config: step.config,
-            },
-          })
+              data: {
+                label: step.title,
+                description:
+                  step.description ?? "",
+                config: step.config,
+              },
+            })
+          );
+
+        /*
+         * Convert database edges into
+         * React Flow edges.
+         */
+
+        const loadedEdges: Edge[] =
+          edgesResult.data.map(
+            (edge: AutomationEdge) => ({
+              id: edge.id,
+
+              source:
+                edge.source_step_id,
+
+              target:
+                edge.target_step_id,
+
+              type: "smoothstep",
+
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+              },
+            })
+          );
+
+        /*
+         * Loading from Supabase is NOT an
+         * editor action, so it must not
+         * enter undo history.
+         */
+
+        setNodes(loadedNodes);
+        setEdges(loadedEdges);
+
+        setSavedState({
+          nodes: loadedNodes,
+          edges: loadedEdges,
+        });
+
+        setHistory({
+          past: [],
+          future: [],
+        });
+      } catch (err) {
+        console.error(
+          "Failed to fetch automation graph:",
+          err
         );
 
-      /*
-       * Convert database edges into
-       * React Flow edges.
-       */
+        setNodes([]);
+        setEdges([]);
 
-      const loadedEdges: Edge[] =
-        edgesResult.data.map(
-          (edge: AutomationEdge) => ({
-            id: edge.id,
+        setSavedState({
+          nodes: [],
+          edges: [],
+        });
 
-            source:
-              edge.source_step_id,
+        setHistory({
+          past: [],
+          future: [],
+        });
 
-            target:
-              edge.target_step_id,
-
-            type: "smoothstep",
-
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-            },
-          })
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load automation graph"
         );
-
-      /*
-       * Loading from Supabase is NOT an
-       * editor action, so it must not
-       * enter undo history.
-       */
-
-      setNodes(loadedNodes);
-      setEdges(loadedEdges);
-
-      setSavedState({
-        nodes: loadedNodes,
-        edges: loadedEdges,
-      });
-
-      setHistory({
-        past: [],
-        future: [],
-      });
-    } catch (err) {
-      console.error(
-        "Failed to fetch automation graph:",
-        err
-      );
-
-      setNodes([]);
-      setEdges([]);
-
-      setSavedState({
-        nodes: [],
-        edges: [],
-      });
-
-      setHistory({
-        past: [],
-        future: [],
-      });
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load automation graph"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [automationId]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [automationId]
+  );
 
   useEffect(() => {
     void fetchGraph();
@@ -556,155 +561,76 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Save graph
    * ----------------------------------------
+   *
+   * Delegates to a single Postgres RPC
+   * (save_automation_graph) that upserts
+   * steps, deletes removed steps, and
+   * replaces edges inside one transaction.
+   *
+   * This avoids the old "shuffle existing
+   * rows to negative positions" workaround,
+   * which broke because automation_steps
+   * has a CHECK (position >= 0) constraint.
+   * The unique(automation_id, position)
+   * constraint is now DEFERRABLE INITIALLY
+   * DEFERRED (see migration), so the RPC can
+   * write steps straight to their final
+   * positions without any temporary shuffle.
    */
 
-  const save = useCallback(async () => {
-    if (!isDirty || isSaving) {
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    const supabase = createClient();
-
-    try {
-
-      console.log(
-  "NODES BEFORE SAVE:",
-  nodes.map((node) => ({
-    id: node.id,
-    type: node.type,
-    config: node.data.config,
-  }))
-);
-
-      /*
-       * --------------------------------
-       * Save steps
-       * --------------------------------
-       *
-       * `description` is written back here —
-       * previously this field was silently
-       * dropped on every save.
-       */
-
-      const stepsToSave = nodes.map(
-        (node, index) => ({
-          id: node.id,
-          automation_id: automationId,
-          position: index,
-          position_x: node.position.x,
-          position_y: node.position.y,
-          title:
-            node.data.label?.trim() ||
-            "Untitled step",
-          description:
-            node.data.description?.trim() ||
-            null,
-          type: node.type,
-          config: node.data.config ?? {},
-        })
-      );
-
-      /*
-       * If there are no nodes, delete all
-       * existing steps instead of upserting
-       * an empty array.
-       */
-
-      if (stepsToSave.length > 0) {
-        const {
-          error: stepsError,
-        } = await supabase
-          .from("automation_steps")
-          .upsert(stepsToSave);
-
-        if (stepsError) {
-          throw stepsError;
-        }
+  const save = useCallback(
+    async () => {
+      if (!isDirty || isSaving) {
+        return;
       }
 
-      /*
-       * Remove database steps that no
-       * longer exist in the editor.
-       */
+      setIsSaving(true);
+      setError(null);
 
-      const currentNodeIds = new Set(
-        nodes.map((node) => node.id)
-      );
+      const supabase = createClient();
 
-      const {
-        data: existingSteps,
-        error: existingStepsError,
-      } = await supabase
-        .from("automation_steps")
-        .select("id")
-        .eq(
-          "automation_id",
-          automationId
-        );
+      try {
+        /*
+         * --------------------------------
+         * Prepare steps payload
+         * --------------------------------
+         */
 
-      if (existingStepsError) {
-        throw existingStepsError;
-      }
+        const stepsToSave =
+          nodes.map((node, index) => ({
+            id: node.id,
 
-      const deletedStepIds =
-        existingSteps
-          .map((step) => step.id)
-          .filter(
-            (id) => !currentNodeIds.has(id)
-          );
+            position: index,
 
-      if (
-        deletedStepIds.length > 0
-      ) {
-        const {
-          error: deleteStepsError,
-        } = await supabase
-          .from("automation_steps")
-          .delete()
-          .in(
-            "id",
-            deletedStepIds
-          );
+            position_x:
+              node.position.x,
 
-        if (deleteStepsError) {
-          throw deleteStepsError;
-        }
-      }
+            position_y:
+              node.position.y,
 
-      /*
-       * --------------------------------
-       * Replace edges
-       * --------------------------------
-       *
-       * The canvas is the source of truth,
-       * so replacing all edges keeps the
-       * database synchronized with React Flow.
-       */
+            title:
+              node.data.label?.trim() ||
+              "Untitled step",
 
-      const {
-        error: deleteEdgesError,
-      } = await supabase
-        .from("automation_edges")
-        .delete()
-        .eq(
-          "automation_id",
-          automationId
-        );
+            description:
+              node.data.description?.trim() ||
+              null,
 
-      if (deleteEdgesError) {
-        throw deleteEdgesError;
-      }
+            type: node.type,
 
-      if (edges.length > 0) {
+            config:
+              node.data.config ?? {},
+          }));
+
+        /*
+         * --------------------------------
+         * Prepare edges payload
+         * --------------------------------
+         */
+
         const edgesToSave =
           edges.map((edge) => ({
             id: edge.id,
-
-            automation_id:
-              automationId,
 
             source_step_id:
               edge.source,
@@ -713,48 +639,63 @@ export function AutomationNodesProvider({
               edge.target,
           }));
 
+        /*
+         * --------------------------------
+         * Save via single atomic RPC
+         * --------------------------------
+         */
+
         const {
-          error: edgesError,
-        } = await supabase
-          .from("automation_edges")
-          .insert(edgesToSave);
+          error: saveError,
+        } = await supabase.rpc(
+          "save_automation_graph",
+          {
+            p_automation_id:
+              automationId,
 
-        if (edgesError) {
-          throw edgesError;
+            p_steps: stepsToSave,
+
+            p_edges: edgesToSave,
+          }
+        );
+
+        if (saveError) {
+          throw saveError;
         }
+
+        /*
+         * --------------------------------
+         * Save successful
+         * --------------------------------
+         */
+
+        setSavedState({
+          nodes,
+          edges,
+        });
+      } catch (err) {
+        console.error(
+          "Failed to save automation:",
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to save automation"
+        );
+      } finally {
+        setIsSaving(false);
       }
-
-      /*
-       * --------------------------------
-       * Save successful
-       * --------------------------------
-       */
-
-      setSavedState({
-        nodes,
-        edges,
-      });
-    } catch (err) {
-      console.error(
-        "Failed to save automation:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to save automation"
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  }, [
-    automationId,
-    nodes,
-    edges,
-    isDirty,
-    isSaving,
-  ]);
+    },
+    [
+      automationId,
+      nodes,
+      edges,
+      isDirty,
+      isSaving,
+    ]
+  );
 
   /*
    * ----------------------------------------
@@ -776,7 +717,8 @@ export function AutomationNodesProvider({
       if (
         (event.ctrlKey ||
           event.metaKey) &&
-        event.key.toLowerCase() === "z" &&
+        event.key.toLowerCase() ===
+          "z" &&
         !event.shiftKey
       ) {
         event.preventDefault();
@@ -802,10 +744,12 @@ export function AutomationNodesProvider({
           event.metaKey) &&
         (
           (
-            event.key.toLowerCase() === "z" &&
+            event.key.toLowerCase() ===
+              "z" &&
             event.shiftKey
           ) ||
-          event.key.toLowerCase() === "y"
+          event.key.toLowerCase() ===
+            "y"
         )
       ) {
         event.preventDefault();
@@ -825,7 +769,8 @@ export function AutomationNodesProvider({
       if (
         (event.ctrlKey ||
           event.metaKey) &&
-        event.key.toLowerCase() === "s"
+        event.key.toLowerCase() ===
+          "s"
       ) {
         event.preventDefault();
 
@@ -845,6 +790,12 @@ export function AutomationNodesProvider({
       );
     };
   }, [undo, redo, save]);
+
+  /*
+   * ----------------------------------------
+   * Provider
+   * ----------------------------------------
+   */
 
   return (
     <AutomationNodesContext.Provider
