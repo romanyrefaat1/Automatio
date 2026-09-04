@@ -13,11 +13,10 @@ import {
 import type { NodeConfigComponentProps } from "./index";
 
 /*
- * BEST GUESS — confirm field names against worker's
- * nodes/loop.ts implementation. Currently assumes a loop
- * can iterate over matched elements (selector), a fixed
- * count, or a comma-separated list, storing the current
- * item in `variable` on each iteration.
+ * Updated LoopConfig: 
+ * Prevents orphaned JSON keys by explicitly constructing the state object 
+ * based on the selected mode, dropping irrelevant fields (e.g., removing 'count'
+ * when switching to 'list').
  */
 
 export default function LoopConfig({
@@ -33,12 +32,32 @@ export default function LoopConfig({
 
         <Select
           value={mode}
-          onValueChange={(value) =>
-            onConfigChange({
-              ...config,
-              mode: value as "selector" | "count" | "list",
-            })
-          }
+          onValueChange={(value) => {
+            const nextMode = value as "selector" | "count" | "list";
+            
+            // Preserve the 'variable' state across mode switches
+            const currentVariable = config.variable;
+
+            if (nextMode === "selector") {
+              onConfigChange({
+                mode: "selector",
+                selector: "selector" in config ? config.selector ?? "" : "",
+                variable: currentVariable,
+              });
+            } else if (nextMode === "count") {
+              onConfigChange({
+                mode: "count",
+                count: "count" in config ? config.count : undefined,
+                variable: currentVariable,
+              });
+            } else if (nextMode === "list") {
+              onConfigChange({
+                mode: "list",
+                list: "list" in config ? config.list ?? "" : "",
+                variable: currentVariable,
+              });
+            }
+          }}
         >
           <SelectTrigger>
             <SelectValue />
@@ -56,10 +75,11 @@ export default function LoopConfig({
         <div className="space-y-2">
           <Label>Selector</Label>
           <Input
-            value={config.selector ?? ""}
+            value={"selector" in config ? config.selector ?? "" : ""}
             onChange={(e) =>
               onConfigChange({
                 ...config,
+                mode: "selector",
                 selector: e.target.value,
               })
             }
@@ -74,10 +94,11 @@ export default function LoopConfig({
           <Input
             type="number"
             min={0}
-            value={config.count ?? ""}
+            value={"count" in config ? config.count ?? "" : ""}
             onChange={(e) =>
               onConfigChange({
                 ...config,
+                mode: "count",
                 count: e.target.value
                   ? Number(e.target.value)
                   : undefined,
@@ -92,10 +113,11 @@ export default function LoopConfig({
         <div className="space-y-2">
           <Label>Values (comma-separated)</Label>
           <Input
-            value={config.list ?? ""}
+            value={"list" in config ? config.list ?? "" : ""}
             onChange={(e) =>
               onConfigChange({
                 ...config,
+                mode: "list",
                 list: e.target.value,
               })
             }

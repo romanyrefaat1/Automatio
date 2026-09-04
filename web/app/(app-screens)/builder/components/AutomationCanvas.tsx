@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import {
   ReactFlow,
   Background,
   Controls,
   Panel,
-  useReactFlow,
   type NodeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -22,6 +20,7 @@ import AutomationTopInfo from "./AutomationTopInfo";
 import CanvasSurviveButtons from "./CanvasSurviveButtons";
 import { nodeTypes } from "@/types/nodes";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
+import { useState } from "react";
 
 export default function AutomationCanvas() {
   const {
@@ -34,17 +33,15 @@ export default function AutomationCanvas() {
     removeNode,
   } = useAutomationNodes();
 
-  const { screenToFlowPosition } = useReactFlow();
-
   const [menuState, setMenuState] = useState<{
     nodeId: string;
-    position: { x: number; y: number };
+    position: {
+      x: number;
+      y: number;
+    };
   } | null>(null);
 
-  const onNodeContextMenu: NodeMouseHandler = (
-    event,
-    node
-  ) => {
+  const onNodeContextMenu: NodeMouseHandler = (event, node) => {
     event.preventDefault();
 
     setMenuState({
@@ -57,14 +54,17 @@ export default function AutomationCanvas() {
   };
 
   return (
-    <div className="h-[100vh] w-full min-w-0">
+    <div className="h-screen w-full min-w-0">
       <ResizablePanelGroup
         direction="horizontal"
         className="h-full w-full"
+        autoSaveId="automation-builder-layout"
       >
+        {/* CANVAS */}
         <ResizablePanel
-          defaultSize={75}
-          minSize={50}
+          id="canvas"
+          defaultSize={70}
+          minSize={30}
         >
           <div className="h-full w-full">
             <ReactFlow
@@ -76,9 +76,7 @@ export default function AutomationCanvas() {
               onConnect={onConnect}
               onEdgeClick={onEdgeClick}
               onNodeContextMenu={onNodeContextMenu}
-              onPaneClick={() =>
-                setMenuState(null)
-              }
+              onPaneClick={() => setMenuState(null)}
               fitView
             >
               <Background />
@@ -94,28 +92,26 @@ export default function AutomationCanvas() {
             </ReactFlow>
 
             <NodeContextMenu
-              nodeId={
-                menuState?.nodeId ?? null
-              }
-              position={
-                menuState?.position ?? null
-              }
-              onClose={() =>
-                setMenuState(null)
-              }
+              nodeId={menuState?.nodeId ?? null}
+              position={menuState?.position ?? null}
+              onClose={() => setMenuState(null)}
               onDelete={removeNode}
             />
           </div>
         </ResizablePanel>
 
+        {/* HANDLE */}
         <ResizableHandle withHandle />
 
+        {/* RIGHT PANEL */}
         <ResizablePanel
-          defaultSize={105}
-          minSize={100}
-          maxSize={800}
+          id="rightPanel"
+          defaultSize={30}
+          minSize={20}
         >
-          <RightPanel />
+          <div className="h-full w-full overflow-hidden">
+            <RightPanel />
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
