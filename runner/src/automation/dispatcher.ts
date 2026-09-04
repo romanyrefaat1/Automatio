@@ -10,19 +10,22 @@ import wait_for_element from "./nodes/wait_for_element";
 import screenshot from "./nodes/screenshot";
 import extract_text from "./nodes/extract_text";
 import assert_text from "./nodes/assert_text";
-import condition from "./nodes/condition";
-import loop_node from "./nodes/loop";
 import call_chatgpt from "./nodes/call_chatgpt";
 import assert_value from "./nodes/assert_value";
 import call_api from "./nodes/call_api";
 import telegram from "./nodes/telegram";
 import { end } from "./nodes/end";
 
-export async function dispatcher(workflowNode, browser, page) {
+export async function dispatcher(
+  workflowNode,
+  browser,
+  page,
+  variables = new Map()
+) {
   switch (workflowNode.type) {
     case "end":
-      return end(browser)
-    
+      return end(browser);
+
     case "goto":
       return goto(workflowNode.config, page);
 
@@ -57,28 +60,52 @@ export async function dispatcher(workflowNode, browser, page) {
       return extract_text(workflowNode.config, page);
 
     case "assert_text":
-      return assert_text(workflowNode.config, page);
-      
+      return assert_text(
+        workflowNode.config,
+        page,
+        variables
+      );
+
     case "assert_value":
-          return assert_value(workflowNode.config, page);
+      return assert_value(
+        workflowNode.config,
+        page
+      );
 
-    case "condition":
-      return condition(workflowNode.config, page);
+    // Handled directly in runner.ts
+    // case "condition":
+    //   return condition(
+    //     workflowNode.config,
+    //     page,
+    //     variables
+    //   );
 
-    case "loop":
-      return loop_node(workflowNode.config, page);
+    // case "loop":
+    //   return loop_node(
+    //     workflowNode.config,
+    //     page,
+    //     variables
+    //   );
 
     case "call_chatgpt":
-        return call_chatgpt(workflowNode.config, browser);
-
+      return call_chatgpt(
+        workflowNode.config,
+        browser
+      );
 
     case "call_api":
-        return call_api(workflowNode.config);
-    
-    case "telegram":
-        return telegram(workflowNode.config);
+      return call_api(
+        workflowNode.config
+      );
 
-  default:
-      throw new Error(`Unknown workflow node type: ${workflowNode.type}`);
+    case "telegram":
+      return telegram(
+        workflowNode.config
+      );
+
+    default:
+      throw new Error(
+        `Unknown workflow node type: ${workflowNode.type}`
+      );
   }
 }

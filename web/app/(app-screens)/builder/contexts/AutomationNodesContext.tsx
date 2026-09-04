@@ -92,41 +92,20 @@ type AutomationNodesContextType = {
     connection: Connection
   ) => void;
 
-  /**
-   * Ctrl/Cmd + click an edge:
-   * delete the edge.
-   *
-   * Alt/Option + click an edge:
-   * cycle its type:
-   *
-   * smoothstep -> straight
-   * straight   -> step
-   * step       -> smoothstep
-   */
   onEdgeClick: (
     event: React.MouseEvent,
     edge: Edge<AutomationEdgeType>
   ) => void;
 
-  /**
-   * Add a node at the supplied flow position.
-   */
   addNode: (
     node: AutomationNode,
     position?: XYPosition
   ) => void;
 
-  /**
-   * Remove a node and all connected edges.
-   */
   removeNode: (
     nodeId: string
   ) => void;
 
-  /**
-   * Automatically arrange the workflow
-   * using ELK.js.
-   */
   autoLayout: () => Promise<void>;
 
   undo: () => void;
@@ -194,9 +173,6 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Saved state
    * ----------------------------------------
-   *
-   * Used to determine whether the graph
-   * has unsaved changes.
    */
 
   const [savedState, setSavedState] =
@@ -249,13 +225,6 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Update graph
    * ----------------------------------------
-   *
-   * Every graph modification goes through
-   * this function so that:
-   *
-   * 1. State is updated
-   * 2. Undo history is created
-   * 3. Redo history is cleared
    */
 
   const updateGraph = useCallback(
@@ -373,8 +342,8 @@ export function AutomationNodesProvider({
       edge: Edge<AutomationEdgeType>
     ) => {
       /*
-       * Ctrl/Cmd + click:
-       * Delete the edge.
+       * Ctrl/Cmd + click
+       * Delete edge.
        */
 
       if (
@@ -391,8 +360,7 @@ export function AutomationNodesProvider({
             edges:
               currentState.edges.filter(
                 (currentEdge) =>
-                  currentEdge.id !==
-                  edge.id
+                  currentEdge.id !== edge.id
               ),
           })
         );
@@ -401,8 +369,8 @@ export function AutomationNodesProvider({
       }
 
       /*
-       * Alt/Option + click:
-       * Cycle the edge type.
+       * Alt/Option + click
+       * Cycle edge type.
        *
        * smoothstep -> straight
        * straight   -> step
@@ -440,8 +408,7 @@ export function AutomationNodesProvider({
               edges:
                 currentState.edges.map(
                   (currentEdge) =>
-                    currentEdge.id ===
-                    edge.id
+                    currentEdge.id === edge.id
                       ? {
                           ...currentEdge,
                           type: nextType,
@@ -462,6 +429,22 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Connect nodes
    * ----------------------------------------
+   *
+   * IMPORTANT:
+   *
+   * React Flow's Connection contains:
+   *
+   * source
+   * target
+   * sourceHandle
+   * targetHandle
+   *
+   * For condition nodes:
+   *
+   * sourceHandle = "true"
+   * sourceHandle = "false"
+   *
+   * We MUST preserve that value.
    */
 
   const onConnect = useCallback(
@@ -484,11 +467,30 @@ export function AutomationNodesProvider({
               id: crypto.randomUUID(),
 
               /*
-               * New edges always start as
+               * New edges default to
                * smoothstep.
                */
 
               type: "smoothstep",
+
+              /*
+               * IMPORTANT:
+               *
+               * Do NOT remove sourceHandle.
+               *
+               * If the connection came from
+               * the condition's "true" handle,
+               * this will be:
+               *
+               * sourceHandle: "true"
+               *
+               * If it came from "false":
+               *
+               * sourceHandle: "false"
+               */
+              sourceHandle:
+                connection.sourceHandle ??
+                undefined,
 
               markerEnd: {
                 type: MarkerType.ArrowClosed,
@@ -540,9 +542,6 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Remove node
    * ----------------------------------------
-   *
-   * Also removes all edges connected to the
-   * deleted node.
    */
 
   const removeNode = useCallback(
@@ -571,19 +570,6 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Auto layout
    * ----------------------------------------
-   *
-   * Uses ELK.js to arrange the workflow
-   * from left -> right.
-   *
-   * Example:
-   *
-   * goto -> click -> fill -> press
-   *
-   * Branches become:
-   *
-   *                  -> fill
-   * condition ->
-   *                  -> screenshot
    */
 
   const autoLayout = useCallback(
@@ -593,76 +579,31 @@ export function AutomationNodesProvider({
       }
 
       try {
-        /*
-         * Build an ELK graph from the current
-         * React Flow graph.
-         */
-
         const graph = {
           id: "root",
 
           layoutOptions: {
-            /*
-             * Layered graph layout.
-             */
-
             "elk.algorithm": "layered",
-
-            /*
-             * Left -> right.
-             */
 
             "elk.direction": "DOWN",
 
-            /*
-             * Horizontal spacing between
-             * nodes in the same layer.
-             */
-
             "elk.spacing.nodeNode": "50",
-
-            /*
-             * Horizontal spacing between
-             * layers.
-             */
 
             "elk.layered.spacing.nodeNodeBetweenLayers":
               "100",
 
-            /*
-             * Additional space around
-             * edges/nodes.
-             */
-
             "elk.layered.spacing.edgeNodeBetweenLayers":
               "40",
-
-            /*
-             * Orthogonal routing works well
-             * for workflow/tree diagrams.
-             */
 
             "elk.edgeRouting":
               "ORTHOGONAL",
 
-            /*
-             * Good automatic node placement.
-             */
-
             "elk.layered.nodePlacement.strategy":
               "NETWORK_SIMPLEX",
-
-            /*
-             * Try to minimize edge crossings.
-             */
 
             "elk.layered.crossingMinimization.strategy":
               "LAYER_SWEEP",
           },
-
-          /*
-           * React Flow nodes -> ELK children.
-           */
 
           children: nodes.map((node) => ({
             id: node.id,
@@ -678,10 +619,6 @@ export function AutomationNodesProvider({
               DEFAULT_NODE_HEIGHT,
           })),
 
-          /*
-           * React Flow edges -> ELK edges.
-           */
-
           edges: edges.map((edge) => ({
             id: edge.id,
 
@@ -691,17 +628,8 @@ export function AutomationNodesProvider({
           })),
         };
 
-        /*
-         * Ask ELK to calculate positions.
-         */
-
         const result =
           await elk.layout(graph);
-
-        /*
-         * Apply ELK positions to the
-         * React Flow nodes.
-         */
 
         const layoutedNodes =
           nodes.map((node) => {
@@ -730,11 +658,6 @@ export function AutomationNodesProvider({
             };
           });
 
-        /*
-         * Put the layout change into
-         * undo history.
-         */
-
         updateGraph(
           (currentState) => ({
             ...currentState,
@@ -743,14 +666,6 @@ export function AutomationNodesProvider({
           }),
           true
         );
-
-        /*
-         * Tell the React Flow canvas that
-         * layout finished.
-         *
-         * The canvas can listen for this
-         * and call fitView().
-         */
 
         window.dispatchEvent(
           new CustomEvent(
@@ -912,8 +827,7 @@ export function AutomationNodesProvider({
 
         /*
          * ----------------------------------------
-         * Convert database steps -> React Flow
-         * nodes
+         * Database steps -> React Flow nodes
          * ----------------------------------------
          */
 
@@ -944,9 +858,13 @@ export function AutomationNodesProvider({
 
         /*
          * ----------------------------------------
-         * Convert database edges -> React Flow
-         * edges
+         * Database edges -> React Flow edges
          * ----------------------------------------
+         *
+         * IMPORTANT:
+         *
+         * source_handle from Supabase
+         * becomes sourceHandle in React Flow.
          */
 
         const loadedEdges:
@@ -960,6 +878,22 @@ export function AutomationNodesProvider({
 
               target:
                 edge.target_step_id,
+
+              /*
+               * IMPORTANT:
+               *
+               * Restore the condition branch.
+               *
+               * DB:
+               * source_handle = "true"
+               *
+               * React Flow:
+               * sourceHandle = "true"
+               */
+
+              sourceHandle:
+                edge.source_handle ??
+                undefined,
 
               type:
                 (
@@ -976,15 +910,14 @@ export function AutomationNodesProvider({
           );
 
         /*
-         * Apply loaded graph to frontend.
+         * Apply loaded graph.
          */
 
         setNodes(loadedNodes);
         setEdges(loadedEdges);
 
         /*
-         * Loaded graph becomes the
-         * clean/saved version.
+         * Loaded graph is clean.
          */
 
         setSavedState({
@@ -993,7 +926,7 @@ export function AutomationNodesProvider({
         });
 
         /*
-         * Loading a graph resets undo/redo.
+         * Reset undo/redo.
          */
 
         setHistory({
@@ -1033,7 +966,7 @@ export function AutomationNodesProvider({
 
   /*
    * ----------------------------------------
-   * Fetch graph when automation changes
+   * Fetch when automation changes
    * ----------------------------------------
    */
 
@@ -1048,7 +981,8 @@ export function AutomationNodesProvider({
    *
    * Sends BOTH nodes and edges to the RPC.
    *
-   * Edge type is explicitly persisted.
+   * IMPORTANT:
+   * Edge source_handle is persisted.
    */
 
   const save = useCallback(
@@ -1100,6 +1034,17 @@ export function AutomationNodesProvider({
          * ----------------------------------------
          * Edges
          * ----------------------------------------
+         *
+         * IMPORTANT:
+         *
+         * React Flow:
+         * sourceHandle
+         *
+         * Supabase:
+         * source_handle
+         *
+         * This is the piece that makes
+         * condition branching work.
          */
 
         const edgesToSave =
@@ -1115,11 +1060,45 @@ export function AutomationNodesProvider({
 
             target_step_id:
               edge.target,
+
+            /*
+             * TRUE / FALSE branch:
+             *
+             * "true"
+             * "false"
+             *
+             * Normal nodes:
+             * null
+             */
+
+            source_handle:
+              edge.sourceHandle ??
+              null,
           }));
 
         /*
+         * Debugging:
+         *
+         * You should now see:
+         *
+         * [
+         *   {
+         *     source_handle: "true"
+         *   },
+         *   {
+         *     source_handle: "false"
+         *   }
+         * ]
+         */
+
+        console.log(
+          "Edges being saved:",
+          edgesToSave
+        );
+
+        /*
          * ----------------------------------------
-         * Save everything through one RPC
+         * Save through RPC
          * ----------------------------------------
          */
 
@@ -1144,7 +1123,7 @@ export function AutomationNodesProvider({
         }
 
         /*
-         * Current frontend graph is now
+         * Current frontend graph is
          * synchronized with Supabase.
          */
 

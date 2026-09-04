@@ -10,134 +10,321 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { NodeConfigComponentProps } from "./index";
+type ValueType =
+  | "static"
+  | "variable"
+  | "text"
+  | "input_value"
+  | "attribute"
+  | "url"
+  | "title";
 
-/*
- * Updated LoopConfig: 
- * Prevents orphaned JSON keys by explicitly constructing the state object 
- * based on the selected mode, dropping irrelevant fields (e.g., removing 'count'
- * when switching to 'list').
- */
+type ValueConfig = {
+  type: ValueType;
+  selector?: string;
+  attribute?: string;
+  name?: string;
+  value?: string;
+};
+
+type LoopCondition = {
+  left: ValueConfig;
+  operator:
+    | "is"
+    | "is_not"
+    | "contains"
+    | "not_contains"
+    | "starts_with"
+    | "ends_with";
+  right: ValueConfig;
+};
+
+type LoopConfig = {
+  max_iterations?: number;
+  condition: LoopCondition;
+};
+
+type Props = {
+  config: Partial<LoopConfig>;
+  onConfigChange: (config: LoopConfig) => void;
+};
+
+const defaultValue: ValueConfig = {
+  type: "static",
+  value: "",
+};
+
+function ValueEditor({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ValueConfig;
+  onChange: (value: ValueConfig) => void;
+}) {
+  const needsSelector =
+    value.type === "text" ||
+    value.type === "input_value" ||
+    value.type === "attribute";
+
+  return (
+    <div className="space-y-3">
+      <Label>{label}</Label>
+
+      <Select
+        value={value.type}
+        onValueChange={(type) => {
+          const next: ValueConfig = {
+            type: type as ValueType,
+          };
+
+          if (type === "static") {
+            next.value = "";
+          }
+
+          if (type === "variable") {
+            next.name = "";
+          }
+
+          if (
+            type === "text" ||
+            type === "input_value" ||
+            type === "attribute"
+          ) {
+            next.selector = "";
+          }
+
+          if (type === "attribute") {
+            next.attribute = "";
+          }
+
+          onChange(next);
+        }}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+
+        <SelectContent>
+          <SelectItem value="static">
+            Static Value
+          </SelectItem>
+
+          <SelectItem value="variable">
+            Variable
+          </SelectItem>
+
+          <SelectItem value="text">
+            Page Text
+          </SelectItem>
+
+          <SelectItem value="input_value">
+            Input Value
+          </SelectItem>
+
+          <SelectItem value="attribute">
+            DOM Attribute
+          </SelectItem>
+
+          <SelectItem value="url">
+            Page URL
+          </SelectItem>
+
+          <SelectItem value="title">
+            Page Title
+          </SelectItem>
+        </SelectContent>
+      </Select>
+
+      {value.type === "static" && (
+        <Input
+          placeholder="Value"
+          value={value.value ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              value: e.target.value,
+            })
+          }
+        />
+      )}
+
+      {value.type === "variable" && (
+        <Input
+          placeholder="Variable name"
+          value={value.name ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              name: e.target.value,
+            })
+          }
+        />
+      )}
+
+      {needsSelector && (
+        <Input
+          placeholder="CSS Selector"
+          value={value.selector ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              selector: e.target.value,
+            })
+          }
+        />
+      )}
+
+      {value.type === "attribute" && (
+        <Input
+          placeholder="Attribute name"
+          value={value.attribute ?? ""}
+          onChange={(e) =>
+            onChange({
+              ...value,
+              attribute: e.target.value,
+            })
+          }
+        />
+      )}
+    </div>
+  );
+}
 
 export default function LoopConfig({
   config,
   onConfigChange,
-}: NodeConfigComponentProps<"loop">) {
-  const mode = config.mode ?? "selector";
+}: Props) {
+  const condition: LoopCondition =
+    config.condition ?? {
+      left: {
+        ...defaultValue,
+      },
+      operator: "is",
+      right: {
+        ...defaultValue,
+      },
+    };
+
+  const completeConfig: LoopConfig = {
+    ...config,
+    condition,
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-5">
       <div className="space-y-2">
-        <Label>Loop Over</Label>
+        <Label htmlFor="loop-max-iterations">
+          Max Iterations
+        </Label>
 
-        <Select
-          value={mode}
-          onValueChange={(value) => {
-            const nextMode = value as "selector" | "count" | "list";
-            
-            // Preserve the 'variable' state across mode switches
-            const currentVariable = config.variable;
+        <Input
+          id="loop-max-iterations"
+          type="number"
+          min={1}
+          placeholder="10"
+          value={completeConfig.max_iterations ?? ""}
+          onChange={(e) => {
+            const value = e.target.value;
 
-            if (nextMode === "selector") {
-              onConfigChange({
-                mode: "selector",
-                selector: "selector" in config ? config.selector ?? "" : "",
-                variable: currentVariable,
-              });
-            } else if (nextMode === "count") {
-              onConfigChange({
-                mode: "count",
-                count: "count" in config ? config.count : undefined,
-                variable: currentVariable,
-              });
-            } else if (nextMode === "list") {
-              onConfigChange({
-                mode: "list",
-                list: "list" in config ? config.list ?? "" : "",
-                variable: currentVariable,
-              });
-            }
+            onConfigChange({
+              ...completeConfig,
+              max_iterations:
+                value === ""
+                  ? undefined
+                  : Number(value),
+            });
           }}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-
-          <SelectContent>
-            <SelectItem value="selector">Matched elements</SelectItem>
-            <SelectItem value="count">Fixed count</SelectItem>
-            <SelectItem value="list">List of values</SelectItem>
-          </SelectContent>
-        </Select>
+        />
       </div>
 
-      {mode === "selector" && (
-        <div className="space-y-2">
-          <Label>Selector</Label>
-          <Input
-            value={"selector" in config ? config.selector ?? "" : ""}
-            onChange={(e) =>
+      <div className="rounded-lg border p-4">
+        <div className="mb-4">
+          <Label>Loop Condition</Label>
+
+          <p className="mt-1 text-xs text-muted-foreground">
+            The loop continues while this condition is true.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <ValueEditor
+            label="Compare From"
+            value={condition.left}
+            onChange={(left) =>
               onConfigChange({
-                ...config,
-                mode: "selector",
-                selector: e.target.value,
+                ...completeConfig,
+                condition: {
+                  ...condition,
+                  left,
+                },
               })
             }
-            placeholder=".list-item"
           />
-        </div>
-      )}
 
-      {mode === "count" && (
-        <div className="space-y-2">
-          <Label>Count</Label>
-          <Input
-            type="number"
-            min={0}
-            value={"count" in config ? config.count ?? "" : ""}
-            onChange={(e) =>
+          <div className="space-y-2">
+            <Label>Operator</Label>
+
+            <Select
+              value={condition.operator}
+              onValueChange={(operator) =>
+                onConfigChange({
+                  ...completeConfig,
+                  condition: {
+                    ...condition,
+                    operator:
+                      operator as LoopCondition["operator"],
+                  },
+                })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="is">
+                  Is
+                </SelectItem>
+
+                <SelectItem value="is_not">
+                  Is Not
+                </SelectItem>
+
+                <SelectItem value="contains">
+                  Contains
+                </SelectItem>
+
+                <SelectItem value="not_contains">
+                  Does Not Contain
+                </SelectItem>
+
+                <SelectItem value="starts_with">
+                  Starts With
+                </SelectItem>
+
+                <SelectItem value="ends_with">
+                  Ends With
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <ValueEditor
+            label="Compare With"
+            value={condition.right}
+            onChange={(right) =>
               onConfigChange({
-                ...config,
-                mode: "count",
-                count: e.target.value
-                  ? Number(e.target.value)
-                  : undefined,
+                ...completeConfig,
+                condition: {
+                  ...condition,
+                  right,
+                },
               })
             }
-            placeholder="5"
           />
         </div>
-      )}
-
-      {mode === "list" && (
-        <div className="space-y-2">
-          <Label>Values (comma-separated)</Label>
-          <Input
-            value={"list" in config ? config.list ?? "" : ""}
-            onChange={(e) =>
-              onConfigChange({
-                ...config,
-                mode: "list",
-                list: e.target.value,
-              })
-            }
-            placeholder="a, b, c"
-          />
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label>Save Current Item As</Label>
-        <Input
-          value={config.variable ?? ""}
-          onChange={(e) =>
-            onConfigChange({
-              ...config,
-              variable: e.target.value,
-            })
-          }
-          placeholder="item"
-        />
       </div>
     </div>
   );

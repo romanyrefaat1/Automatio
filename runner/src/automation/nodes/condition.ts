@@ -1,62 +1,55 @@
 import { Page } from "@playwright/test";
 import compare from "./helper/compare";
+import resolveValue, {
+  type ValueConfig,
+} from "./helper/resolveValue";
+
+export type ConditionConfig = {
+  left: ValueConfig;
+  operator:
+    | "is"
+    | "is_not"
+    | "contains"
+    | "not_contains"
+    | "starts_with"
+    | "ends_with";
+  right: ValueConfig;
+};
 
 export default async function condition(
-  config: any,
-  page: Page
+  config: ConditionConfig,
+  page: Page,
+  variables: Map<string, unknown> = new Map()
 ) {
   try {
-    let actual: unknown;
-
-    switch (config.source) {
-      case "text": {
-        actual = await page
-          .locator(config.selector)
-          .textContent();
-
-        actual = String(actual ?? "").trim();
-
-        break;
-      }
-
-      case "url": {
-        actual = page.url();
-
-        break;
-      }
-
-      case "title": {
-        actual = await page.title();
-
-        break;
-      }
-
-      case "input_value": {
-        actual = await page
-          .locator(config.selector)
-          .inputValue();
-
-        break;
-      }
-
-      case "attribute": {
-        actual = await page
-          .locator(config.selector)
-          .getAttribute(config.attribute);
-
-        break;
-      }
-
-      default:
-        throw new Error(
-          `Unknown condition source: ${config.source}`
-        );
+    if (!config.left) {
+      throw new Error(
+        "Condition left side is required"
+      );
     }
+
+    if (!config.right) {
+      throw new Error(
+        "Condition right side is required"
+      );
+    }
+
+    const actual = await resolveValue(
+      config.left,
+      page,
+      variables
+    );
+
+    const expected = await resolveValue(
+      config.right,
+      page,
+      variables
+    );
 
     const result = compare(
       actual,
       config.operator,
-      config.value
+      expected
     );
 
     return {

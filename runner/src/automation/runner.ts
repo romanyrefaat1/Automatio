@@ -188,33 +188,37 @@ export default async function runner(
       }
 
       /*
-       * Resolve variables inside the
-       * loop condition.
-       */
-      const loopCondition =
-        interpolate(
-          currentNode.data.config.condition,
-          variables
-        );
+ * Resolve loop condition.
+ */
+const loopCondition =
+  currentNode.data.config.condition;
 
-      const conditionResponse =
-        await condition(
-          loopCondition,
-          page
-        );
+const conditionResponse =
+  await condition(
+    loopCondition,
+    page,
+    variables
+  );
 
-      console.log(
-        `Loop ${currentNode.id} condition:`,
-        conditionResponse
-      );
+console.log(
+  `Loop ${currentNode.id} condition config:`,
+  loopCondition
+);
 
-      if (
-        !conditionResponse.success
-      ) {
-        throw new Error(
-          `Loop ${currentNode.id} condition failed`
-        );
-      }
+console.log(
+  `Loop ${currentNode.id} condition result:`,
+  conditionResponse
+);
+
+if (!conditionResponse.success) {
+  throw new Error(
+    `Loop ${currentNode.id} condition failed: ${
+      conditionResponse.error instanceof Error
+        ? conditionResponse.error.message
+        : String(conditionResponse.error)
+    }`
+  );
+}
 
       /*
        * Condition is false → leave loop.
@@ -288,70 +292,82 @@ export default async function runner(
       continue;
     }
 
-    /*
-     * ========================================
-     * CONDITION
-     * ========================================
-     */
+  /*
+ * ========================================
+ * CONDITION
+ * ========================================
+ */
 
-    if (
-      currentNode.type ===
-      "condition"
-    ) {
-      const resolvedConfig =
-        interpolate(
-          currentNode.data.config,
-          variables
-        );
+if (currentNode.type === "condition") {
+  const response = await condition(
+    currentNode.data.config,
+    page,
+    variables
+  );
 
-        console.log("resolvedConfig:", resolvedConfig, "......", currentNode)
+  console.log(
+    "Condition config:",
+    currentNode.data.config
+  );
 
-      const response =
-        await condition(
-          resolvedConfig,
-          page
-        );
+  console.log(
+    "Condition response:",
+    response
+  );
 
-      console.log(
-        "Response:",
-        response
-      );
+  if (!response.success) {
+    throw new Error(
+      `Condition node ${currentNode.id} failed: ${
+        response.error instanceof Error
+          ? response.error.message
+          : String(response.error)
+      }`
+    );
+  }
 
-      if (
-        !response.success
-      ) {
-        throw new Error(
-          `Condition node ${currentNode.id} failed`
-        );
-      }
-
-      const handle =
-        response.data
-          ? "true"
-          : "false";
-
-      const edge =
-        getEdgeByHandle(
-          workflowEdges,
-          currentNode.id,
-          handle
-        );
-
-      if (!edge) {
-        throw new Error(
-          `Condition node ${currentNode.id} has no ${handle} branch`
-        );
-      }
+  const handle =
+    response.data
+      ? "true"
+      : "false";
 
       console.log(
-        `Condition ${currentNode.id}: ${handle}`
-      );
+  "Condition node:",
+  currentNode.id
+);
 
-      currentNodeId =
-        edge.target;
+console.log(
+  "Expected handle:",
+  handle
+);
 
-      continue;
-    }
+console.log(
+  "Outgoing condition edges:",
+  workflowEdges.filter(
+    (edge) =>
+      edge.source === currentNode.id
+  )
+);
+
+  const edge = getEdgeByHandle(
+    workflowEdges,
+    currentNode.id,
+    handle
+  );
+
+  if (!edge) {
+    throw new Error(
+      `Condition node ${currentNode.id} has no ${handle} branch`
+    );
+  }
+
+  console.log(
+    `Condition ${currentNode.id}: ${handle}`
+  );
+
+  currentNodeId = edge.target;
+
+  continue;
+}
 
     /*
      * ========================================
@@ -479,11 +495,12 @@ export default async function runner(
     };
 
     const response =
-      await dispatcher(
-        nodeToRun,
-        browser,
-        page
-      );
+  await dispatcher(
+    nodeToRun,
+    browser,
+    page,
+    variables
+  );
 
     console.log(
       "Response:",

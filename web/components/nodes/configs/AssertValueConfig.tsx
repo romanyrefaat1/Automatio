@@ -3,6 +3,10 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -10,39 +14,127 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { NodeConfigComponentProps } from "./index";
+type Config = {
+  variable?: string;
+  selector?: string;
+  expected?: string;
+  match?: "exact" | "contains";
+  save_as?: string;
+};
 
-/*
- * BEST GUESS — confirm field names against worker's
- * nodes/assert_value.ts implementation. Assumes this
- * asserts on a previously saved variable (e.g. from
- * extract_text / call_api / call_chatgpt's save_as),
- * as opposed to assert_text which reads live DOM text.
- */
+type Props = {
+  config: Config;
+  onConfigChange: (config: Config) => void;
+};
 
-export default function AssertValueConfig({
+export default function AssertTextConfig({
   config,
   onConfigChange,
-}: NodeConfigComponentProps<"assert_value">) {
+}: Props) {
+  const isVariableMode =
+    Object.prototype.hasOwnProperty.call(config, "variable");
+
+  const handleModeToggle = (mode: string) => {
+    if (mode === "variable") {
+      onConfigChange({
+        ...config,
+        variable: config.variable ?? "",
+        selector: undefined,
+      });
+      return;
+    }
+
+    onConfigChange({
+      ...config,
+      selector: config.selector ?? "",
+      variable: undefined,
+    });
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="space-y-2">
-        <Label>Variable</Label>
-        <Input
-          value={config.variable ?? ""}
-          onChange={(e) =>
-            onConfigChange({
-              ...config,
-              variable: e.target.value,
-            })
-          }
-          placeholder="username"
-        />
+        <Label>Source</Label>
+
+        <RadioGroup
+          value={isVariableMode ? "variable" : "selector"}
+          onValueChange={handleModeToggle}
+          className="flex gap-6"
+        >
+          <div className="flex items-center gap-2">
+            <RadioGroupItem
+              value="selector"
+              id="assert-text-selector"
+            />
+            <Label
+              htmlFor="assert-text-selector"
+              className="cursor-pointer font-normal"
+            >
+              DOM Selector
+            </Label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <RadioGroupItem
+              value="variable"
+              id="assert-text-variable"
+            />
+            <Label
+              htmlFor="assert-text-variable"
+              className="cursor-pointer font-normal"
+            >
+              Variable
+            </Label>
+          </div>
+        </RadioGroup>
       </div>
 
+      {isVariableMode ? (
+        <div className="space-y-2">
+          <Label htmlFor="assert-text-variable-input">
+            Variable
+          </Label>
+
+          <Input
+            id="assert-text-variable-input"
+            placeholder="Variable name"
+            value={config.variable ?? ""}
+            onChange={(e) =>
+              onConfigChange({
+                ...config,
+                variable: e.target.value,
+              })
+            }
+          />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="assert-text-selector-input">
+            CSS Selector
+          </Label>
+
+          <Input
+            id="assert-text-selector-input"
+            placeholder=".my-element"
+            value={config.selector ?? ""}
+            onChange={(e) =>
+              onConfigChange({
+                ...config,
+                selector: e.target.value,
+              })
+            }
+          />
+        </div>
+      )}
+
       <div className="space-y-2">
-        <Label>Expected Value</Label>
+        <Label htmlFor="assert-text-expected">
+          Expected Text
+        </Label>
+
         <Input
+          id="assert-text-expected"
+          placeholder="Expected value"
           value={config.expected ?? ""}
           onChange={(e) =>
             onConfigChange({
@@ -50,39 +142,52 @@ export default function AssertValueConfig({
               expected: e.target.value,
             })
           }
-          placeholder="admin"
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Operator</Label>
+        <Label>Match</Label>
 
         <Select
-          value={config.operator ?? "equals"}
-          onValueChange={(value) =>
+          value={config.match ?? "exact"}
+          onValueChange={(value: "exact" | "contains") =>
             onConfigChange({
               ...config,
-              operator: value as
-                | "equals"
-                | "not_equals"
-                | "contains"
-                | "not_contains",
+              match: value,
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
 
           <SelectContent>
-            <SelectItem value="equals">Equals</SelectItem>
-            <SelectItem value="not_equals">Does not equal</SelectItem>
-            <SelectItem value="contains">Contains</SelectItem>
-            <SelectItem value="not_contains">
-              Does not contain
+            <SelectItem value="exact">
+              Exact Match
+            </SelectItem>
+            <SelectItem value="contains">
+              Contains
             </SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="assert-text-save-as">
+          Save Result As
+        </Label>
+
+        <Input
+          id="assert-text-save-as"
+          placeholder="Optional variable name"
+          value={config.save_as ?? ""}
+          onChange={(e) =>
+            onConfigChange({
+              ...config,
+              save_as: e.target.value,
+            })
+          }
+        />
       </div>
     </div>
   );

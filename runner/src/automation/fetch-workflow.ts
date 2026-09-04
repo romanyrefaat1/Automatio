@@ -1,6 +1,5 @@
 import { supabase } from "../supabase/supabase";
 
-
 type AutomationStepRow = {
   id: string;
   automation_id: string;
@@ -11,17 +10,12 @@ type AutomationStepRow = {
 };
 
 type AutomationEdgeRow = {
-  id?: string;
-  automation_id?: string;
-
-  // Depending on your automation_edges schema
-  source?: string;
-  target?: string;
-
-  source_step_id?: string;
-  target_step_id?: string;
-
-  [key: string]: unknown;
+  id: string;
+  automation_id: string;
+  source_step_id: string;
+  target_step_id: string;
+  source_handle: string | null;
+  type: string;
 };
 
 export async function fetchWorkflow(automationId: string) {
@@ -62,14 +56,39 @@ export async function fetchWorkflow(automationId: string) {
   const workflowEdges = (edges as AutomationEdgeRow[]).map((edge) => ({
     id: edge.id,
 
-    source:
-      edge.source ??
-      edge.source_step_id,
+    source: edge.source_step_id,
 
-    target:
-      edge.target ??
-      edge.target_step_id,
+    target: edge.target_step_id,
+
+    /*
+     * IMPORTANT:
+     *
+     * Supabase:
+     *   source_handle
+     *
+     * Runner:
+     *   sourceHandle
+     *
+     * Condition nodes use:
+     *   "true"
+     *   "false"
+     *
+     * Loop nodes can use:
+     *   "body"
+     *   "done"
+     */
+    sourceHandle: edge.source_handle ?? undefined,
+
+    /*
+     * Preserve the React Flow edge type as well.
+     */
+    type: edge.type ?? "smoothstep",
   }));
+
+  console.log(
+    "Fetched workflow edges:",
+    workflowEdges
+  );
 
   return {
     workflowArray,
