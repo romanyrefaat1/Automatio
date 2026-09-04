@@ -13,12 +13,6 @@ import {
 
 import type { NodeConfigComponentProps } from "./index";
 
-/*
- * BEST GUESS — confirm field names against worker's
- * nodes/call_api.ts implementation (called with
- * (workflowNode.config) only, no page/browser).
- */
-
 export default function CallApiConfig({
   config,
   onConfigChange,

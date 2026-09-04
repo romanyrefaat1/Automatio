@@ -1,6 +1,13 @@
 "use client";
 
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import {
+  Handle,
+  Position,
+  useNodeConnections,
+  useUpdateNodeInternals,
+  type NodeProps,
+} from "@xyflow/react";
+import { useEffect } from "react";
 import { GitFork } from "lucide-react";
 
 import type { AutomationNode } from "@/types/nodes";
@@ -12,9 +19,38 @@ import {
 } from "./node-components";
 
 export function ParallelNode({
+  id,
   data,
 }: NodeProps<AutomationNode>) {
   const config = data.config;
+
+  const outgoingConnections = useNodeConnections({
+    handleType: "source",
+  });
+
+  const connectedBranchCount =
+    outgoingConnections.length;
+
+  const handleCount =
+    connectedBranchCount === 0
+      ? connectedBranchCount + 2
+      : connectedBranchCount + 1;
+
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  /*
+   * React Flow caches each handle's DOM position.
+   * Whenever we change how many handles render (or
+   * where they sit), we must tell React Flow to
+   * recompute that cache, or dragging a new edge
+   * onto/from a handle can silently fail.
+   */
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, handleCount, updateNodeInternals]);
+
+  const mergeVariables =
+    config?.merge_variables === true;
 
   return (
     <div className={nodeBase}>
@@ -27,13 +63,18 @@ export function ParallelNode({
 
       <div className={contentBase}>
         <NodeField
-          label="Config"
-          value={
-            config
-              ? JSON.stringify(config)
-              : "Configure parallel branches"
-          }
+          label="Branches"
+          value={String(connectedBranchCount)}
         />
+        <NodeField
+          label="Merge variables"
+          value={mergeVariables ? "Yes" : "No"}
+        />
+        <p className="text-xs text-muted-foreground">
+          {mergeVariables
+            ? "Variables set inside each branch are merged back into the workflow once every branch finishes."
+            : "Variables set inside branches stay isolated and won't affect the workflow after the branches finish."}
+        </p>
       </div>
 
       <Handle
@@ -42,11 +83,28 @@ export function ParallelNode({
         id="input"
       />
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-      />
+      {Array.from({ length: handleCount }).map(
+        (_, index) => {
+          const leftPercent =
+            handleCount === 1
+              ? 50
+              : ((index + 1) /
+                  (handleCount + 1)) *
+                100;
+
+          return (
+            <Handle
+              key={index}
+              type="source"
+              position={Position.Bottom}
+              id={`branch-${index}`}
+              style={{
+                left: `${leftPercent}%`,
+              }}
+            />
+          );
+        }
+      )}
     </div>
   );
 }

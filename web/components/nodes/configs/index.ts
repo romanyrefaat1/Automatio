@@ -25,21 +25,10 @@ import AssertValueConfig from "./AssertValueConfig";
 
 import type {
   AutomationNodeType,
-  // AutomationStepConfigMap,
 } from "@/types/nodes";
 
 import {AutomationStepConfigMap} from "@/types/automation-rules"
 import CallChatGPTConfig from "./CallChatgptConfig";
-
-/*
- * NOTE: this file previously contained a copy-paste of the
- * "Add Nodes" catalog (components/nodes/index.ts) instead
- * of the actual config-form registry. There was no
- * `nodeConfigComponents` export at all, which is why
- * SubTabContent's import failed. This is the real content:
- * every node type's config-panel component, keyed exactly
- * to AutomationNodeType.
- */
 
 /* =========================================================
    SHARED CONFIG COMPONENT CONTRACT

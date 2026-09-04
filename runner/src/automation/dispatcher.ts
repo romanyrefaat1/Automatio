@@ -54,6 +54,9 @@ export async function dispatcher(workflowNode, browser, page) {
 
     case "assert_text":
       return assert_text(workflowNode.config, page);
+      
+    case "assert_value":
+          return assert_value(workflowNode.config, page);
 
     case "condition":
       return condition(workflowNode.config, page);
@@ -64,8 +67,6 @@ export async function dispatcher(workflowNode, browser, page) {
     case "call_chatgpt":
         return call_chatgpt(workflowNode.config, browser);
 
-    case "assert_value":
-        return assert_value(workflowNode.config, page);
 
     case "call_api":
         return call_api(workflowNode.config);

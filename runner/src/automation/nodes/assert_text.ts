@@ -5,23 +5,22 @@ export default async function assert_text(config: any, page: Page) {
     const text = await page.locator(config.selector).textContent();
 
     const actual = text?.trim() ?? "";
+    let isTrue = true;
 
     if (config.match === "exact") {
       if (actual !== config.expected) {
-        throw new Error(
-          `Expected "${config.expected}" but received "${actual}"`
-        );
+        isTrue = false;
       }
     } else {
       if (!actual.includes(config.expected)) {
-        throw new Error(
-          `Expected "${actual}" to contain "${config.expected}"`
-        );
+        isTrue = false;
       }
     }
 
     return {
       success: true,
+      data: isTrue,
+      save_as: config.save_as,
     };
   } catch (error) {
     return {

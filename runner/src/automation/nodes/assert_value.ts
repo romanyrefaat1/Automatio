@@ -9,22 +9,22 @@ export default async function assert_value(
       .locator(config.selector)
       .inputValue();
 
+    let isTrue = true;
+
     if (config.match === "exact") {
       if (actual !== config.expected) {
-        throw new Error(
-          `Expected "${config.expected}" but received "${actual}"`
-        );
+        isTrue = false;
       }
     } else {
       if (!actual.includes(config.expected)) {
-        throw new Error(
-          `Expected "${actual}" to contain "${config.expected}"`
-        );
+        isTrue = false;
       }
     }
 
     return {
       success: true,
+      data: isTrue,
+      save_as: config.save_as,
     };
   } catch (error) {
     return {

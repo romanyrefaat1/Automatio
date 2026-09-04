@@ -1,17 +1,9 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 import type { NodeConfigComponentProps } from "./index";
-
-/*
- * BEST GUESS. NOTE: "parallel" is defined in the DB enum
- * and AutomationStepConfigMap, but is not handled in the
- * worker dispatcher yet — this node will save fine but the
- * worker will throw "Unknown workflow node type" until
- * nodes/parallel.ts is added there.
- */
 
 export default function ParallelConfig({
   config,
@@ -19,21 +11,24 @@ export default function ParallelConfig({
 }: NodeConfigComponentProps<"parallel">) {
   return (
     <div className="space-y-2">
-      <Label>Branches</Label>
-      <Input
-        type="number"
-        min={2}
-        value={config.branches ?? ""}
-        onChange={(e) =>
-          onConfigChange({
-            ...config,
-            branches: e.target.value
-              ? Number(e.target.value)
-              : undefined,
-          })
-        }
-        placeholder="2"
-      />
+      <div className="flex items-center justify-between">
+        <Label htmlFor="merge-variables">Merge branch variables</Label>
+        <Switch
+          id="merge-variables"
+          checked={config.merge_variables === true}
+          onCheckedChange={(checked) =>
+            onConfigChange({
+              ...config,
+              merge_variables: checked,
+            })
+          }
+        />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        When enabled, variables set inside each parallel branch are merged
+        back into the workflow after all branches finish. Disabled by
+        default.
+      </p>
     </div>
   );
 }

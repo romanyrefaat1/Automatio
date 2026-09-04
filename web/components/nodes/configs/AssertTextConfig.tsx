@@ -68,6 +68,26 @@ export default function AssertTextConfig({
           </SelectContent>
         </Select>
       </div>
+
+      <div className="space-y-2">
+        <Label>Save As</Label>
+        <Input
+          value={config.save_as ?? ""}
+          onChange={(e) =>
+            onConfigChange({
+              ...config,
+              save_as: e.target.value
+                ? e.target.value
+                : undefined,
+            })
+          }
+          placeholder="my_variable"
+        />
+        <p className="text-xs text-muted-foreground">
+          Store this node's result in a variable you can reference later
+          with {"{{"}my_variable{"}}"}.
+        </p>
+      </div>
     </div>
   );
 }
