@@ -1,6 +1,6 @@
 import { Browser, Page } from "@playwright/test";
 
-export default async function goto(config: any, page: Page, browser: Browser) {
+export default async function goto(config: any, page: Page) {
   try {
     await page.goto(config.url, {
       waitUntil: config.waitUntil ?? "domcontentloaded",

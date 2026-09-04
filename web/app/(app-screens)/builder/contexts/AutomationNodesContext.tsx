@@ -9,6 +9,7 @@ import {
   type Edge,
   type EdgeChange,
   type NodeChange,
+  type XYPosition,
 } from "@xyflow/react";
 
 import {
@@ -25,22 +26,57 @@ import type { Tables } from "@/types/supabase-auto";
 
 import { createClient } from "@/lib/supabase/client";
 
+/*
+ * ----------------------------------------
+ * Database types
+ * ----------------------------------------
+ */
+
 type AutomationStep = Tables<"automation_steps">;
 type AutomationEdge = Tables<"automation_edges">;
 
+/*
+ * ----------------------------------------
+ * Edge types
+ * ----------------------------------------
+ */
+
+export type AutomationEdgeType =
+  | "smoothstep"
+  | "straight"
+  | "step";
+
+/*
+ * ----------------------------------------
+ * Editor state
+ * ----------------------------------------
+ */
+
 type AutomationEditorState = {
   nodes: AutomationNode[];
-  edges: Edge[];
+  edges: Edge<AutomationEdgeType>[];
 };
+
+/*
+ * ----------------------------------------
+ * History
+ * ----------------------------------------
+ */
 
 type AutomationHistory = {
   past: AutomationEditorState[];
   future: AutomationEditorState[];
 };
 
+/*
+ * ----------------------------------------
+ * Context
+ * ----------------------------------------
+ */
+
 type AutomationNodesContextType = {
   nodes: AutomationNode[];
-  edges: Edge[];
+  edges: Edge<AutomationEdgeType>[];
 
   onNodesChange: (
     changes: NodeChange<AutomationNode>[]
@@ -54,8 +90,24 @@ type AutomationNodesContextType = {
     connection: Connection
   ) => void;
 
+  /**
+   * Alt-click an edge to cycle its type:
+   *
+   * smoothstep -> straight
+   * straight   -> step
+   * step       -> smoothstep
+   */
+  onEdgeClick: (
+    event: React.MouseEvent,
+    edge: Edge<AutomationEdgeType>
+  ) => void;
+
+  /**
+   * Add a node at the supplied flow position.
+   */
   addNode: (
-    node: AutomationNode
+    node: AutomationNode,
+    position?: XYPosition
   ) => void;
 
   removeNode: (
@@ -74,31 +126,50 @@ type AutomationNodesContextType = {
   save: () => Promise<void>;
 };
 
-const AutomationNodesContext = createContext<
-  AutomationNodesContextType | undefined
->(undefined);
+const AutomationNodesContext =
+  createContext<
+    AutomationNodesContextType | undefined
+  >(undefined);
+
+/*
+ * ----------------------------------------
+ * Provider props
+ * ----------------------------------------
+ */
 
 type AutomationNodesProviderProps = {
   automationId: string;
   children: ReactNode;
 };
 
+/*
+ * ----------------------------------------
+ * Provider
+ * ----------------------------------------
+ */
+
 export function AutomationNodesProvider({
   automationId,
   children,
 }: AutomationNodesProviderProps) {
+  /*
+   * ----------------------------------------
+   * Graph state
+   * ----------------------------------------
+   */
+
   const [nodes, setNodes] =
     useState<AutomationNode[]>([]);
 
   const [edges, setEdges] =
-    useState<Edge[]>([]);
+    useState<Edge<AutomationEdgeType>[]>([]);
 
   /*
    * ----------------------------------------
    * Saved state
    * ----------------------------------------
    *
-   * Used to determine whether the editor
+   * Used to determine whether the graph
    * has unsaved changes.
    */
 
@@ -153,8 +224,12 @@ export function AutomationNodesProvider({
    * Update graph
    * ----------------------------------------
    *
-   * Every actual editor change creates
-   * an undo history entry.
+   * Every graph modification goes through
+   * this function so that:
+   *
+   * 1. State is updated
+   * 2. Undo history is created
+   * 3. Redo history is cleared
    */
 
   const updateGraph = useCallback(
@@ -166,7 +241,7 @@ export function AutomationNodesProvider({
           ) => AutomationEditorState),
       saveHistory = true
     ) => {
-      const previousState = {
+      const previousState: AutomationEditorState = {
         nodes,
         edges,
       };
@@ -187,13 +262,15 @@ export function AutomationNodesProvider({
       setEdges(nextState.edges);
 
       if (saveHistory) {
-        setHistory((currentHistory) => ({
-          past: [
-            ...currentHistory.past,
-            previousState,
-          ],
-          future: [],
-        }));
+        setHistory(
+          (currentHistory) => ({
+            past: [
+              ...currentHistory.past,
+              previousState,
+            ],
+            future: [],
+          })
+        );
       }
     },
     [nodes, edges]
@@ -238,17 +315,116 @@ export function AutomationNodesProvider({
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
-      updateGraph((currentState) => ({
-        ...currentState,
+      updateGraph(
+        (currentState) => ({
+          ...currentState,
 
-        edges: applyEdgeChanges(
-          changes,
-          currentState.edges
-        ),
-      }));
+          edges: applyEdgeChanges(
+            changes,
+            currentState.edges
+          ),
+        })
+      );
     },
     [updateGraph]
   );
+
+  /*
+   * ----------------------------------------
+   * Edge type change
+   * ----------------------------------------
+   *
+   * Alt-click cycles:
+   *
+   * smoothstep -> straight
+   * straight   -> step
+   * step       -> smoothstep
+   *
+   * The new type is stored directly inside
+   * the React Flow edge object.
+   *
+   * Because updateGraph() is used, the
+   * modification is also added to undo
+   * history and makes the graph dirty.
+   */
+
+ const onEdgeClick = useCallback(
+  (
+    event: React.MouseEvent,
+    edge: Edge<AutomationEdgeType>
+  ) => {
+    /*
+     * Ctrl/Cmd + click:
+     * Delete the edge.
+     */
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      updateGraph((currentState) => ({
+        ...currentState,
+
+        edges: currentState.edges.filter(
+          (currentEdge) =>
+            currentEdge.id !== edge.id
+        ),
+      }));
+
+      return;
+    }
+
+    /*
+     * Alt + click:
+     * Cycle the edge type.
+     *
+     * smoothstep -> straight
+     * straight   -> step
+     * step       -> smoothstep
+     */
+    if (event.altKey) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      updateGraph((currentState) => {
+        let nextType: AutomationEdgeType;
+
+        switch (edge.type) {
+          case "smoothstep":
+            nextType = "straight";
+            break;
+
+          case "straight":
+            nextType = "step";
+            break;
+
+          case "step":
+            nextType = "smoothstep";
+            break;
+
+          default:
+            nextType = "smoothstep";
+        }
+
+        return {
+          ...currentState,
+
+          edges: currentState.edges.map(
+            (currentEdge) =>
+              currentEdge.id === edge.id
+                ? {
+                    ...currentEdge,
+                    type: nextType,
+                  }
+                : currentEdge
+          ),
+        };
+      });
+
+      return;
+    }
+  },
+  [updateGraph]
+);
 
   /*
    * ----------------------------------------
@@ -265,24 +441,31 @@ export function AutomationNodesProvider({
         return;
       }
 
-      updateGraph((currentState) => ({
-        ...currentState,
+      updateGraph(
+        (currentState) => ({
+          ...currentState,
 
-        edges: addEdge(
-          {
-            ...connection,
+          edges: addEdge(
+            {
+              ...connection,
 
-            id: crypto.randomUUID(),
+              id: crypto.randomUUID(),
 
-            type: "smoothstep",
+              /*
+               * New edges always start as
+               * smoothstep.
+               */
 
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
+              type: "smoothstep",
+
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+              },
             },
-          },
-          currentState.edges
-        ),
-      }));
+            currentState.edges
+          ),
+        })
+      );
     },
     [updateGraph]
   );
@@ -294,15 +477,29 @@ export function AutomationNodesProvider({
    */
 
   const addNode = useCallback(
-    (node: AutomationNode) => {
-      updateGraph((currentState) => ({
-        nodes: [
-          ...currentState.nodes,
-          node,
-        ],
+    (
+      node: AutomationNode,
+      position?: XYPosition
+    ) => {
+      updateGraph(
+        (currentState) => ({
+          nodes: [
+            ...currentState.nodes,
 
-        edges: currentState.edges,
-      }));
+            {
+              ...node,
+
+              ...(position
+                ? {
+                    position,
+                  }
+                : {}),
+            },
+          ],
+
+          edges: currentState.edges,
+        })
+      );
     },
     [updateGraph]
   );
@@ -311,23 +508,29 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Remove node
    * ----------------------------------------
+   *
+   * Also removes all edges connected to the
+   * deleted node.
    */
 
   const removeNode = useCallback(
     (nodeId: string) => {
-      updateGraph((currentState) => ({
-        nodes:
-          currentState.nodes.filter(
-            (node) => node.id !== nodeId
-          ),
+      updateGraph(
+        (currentState) => ({
+          nodes:
+            currentState.nodes.filter(
+              (node) =>
+                node.id !== nodeId
+            ),
 
-        edges:
-          currentState.edges.filter(
-            (edge) =>
-              edge.source !== nodeId &&
-              edge.target !== nodeId
-          ),
-      }));
+          edges:
+            currentState.edges.filter(
+              (edge) =>
+                edge.source !== nodeId &&
+                edge.target !== nodeId
+            ),
+        })
+      );
     },
     [updateGraph]
   );
@@ -339,36 +542,39 @@ export function AutomationNodesProvider({
    */
 
   const undo = useCallback(() => {
-    setHistory((currentHistory) => {
-      if (
-        currentHistory.past.length === 0
-      ) {
-        return currentHistory;
+    setHistory(
+      (currentHistory) => {
+        if (
+          currentHistory.past.length === 0
+        ) {
+          return currentHistory;
+        }
+
+        const previous =
+          currentHistory.past[
+            currentHistory.past.length - 1
+          ];
+
+        const currentState: AutomationEditorState =
+          {
+            nodes,
+            edges,
+          };
+
+        setNodes(previous.nodes);
+        setEdges(previous.edges);
+
+        return {
+          past:
+            currentHistory.past.slice(0, -1),
+
+          future: [
+            currentState,
+            ...currentHistory.future,
+          ],
+        };
       }
-
-      const previous =
-        currentHistory.past[
-          currentHistory.past.length - 1
-        ];
-
-      const currentState: AutomationEditorState = {
-        nodes,
-        edges,
-      };
-
-      setNodes(previous.nodes);
-      setEdges(previous.edges);
-
-      return {
-        past:
-          currentHistory.past.slice(0, -1),
-
-        future: [
-          currentState,
-          ...currentHistory.future,
-        ],
-      };
-    });
+    );
   }, [nodes, edges]);
 
   /*
@@ -378,34 +584,37 @@ export function AutomationNodesProvider({
    */
 
   const redo = useCallback(() => {
-    setHistory((currentHistory) => {
-      if (
-        currentHistory.future.length === 0
-      ) {
-        return currentHistory;
+    setHistory(
+      (currentHistory) => {
+        if (
+          currentHistory.future.length === 0
+        ) {
+          return currentHistory;
+        }
+
+        const next =
+          currentHistory.future[0];
+
+        const currentState: AutomationEditorState =
+          {
+            nodes,
+            edges,
+          };
+
+        setNodes(next.nodes);
+        setEdges(next.edges);
+
+        return {
+          past: [
+            ...currentHistory.past,
+            currentState,
+          ],
+
+          future:
+            currentHistory.future.slice(1),
+        };
       }
-
-      const next =
-        currentHistory.future[0];
-
-      const currentState: AutomationEditorState = {
-        nodes,
-        edges,
-      };
-
-      setNodes(next.nodes);
-      setEdges(next.edges);
-
-      return {
-        past: [
-          ...currentHistory.past,
-          currentState,
-        ],
-
-        future:
-          currentHistory.future.slice(1),
-      };
-    });
+    );
   }, [nodes, edges]);
 
   /*
@@ -419,13 +628,18 @@ export function AutomationNodesProvider({
       setLoading(true);
       setError(null);
 
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
       try {
         const [
           stepsResult,
           edgesResult,
         ] = await Promise.all([
+          /*
+           * Fetch steps.
+           */
+
           supabase
             .from("automation_steps")
             .select("*")
@@ -436,6 +650,10 @@ export function AutomationNodesProvider({
             .order("position", {
               ascending: true,
             }),
+
+          /*
+           * Fetch edges.
+           */
 
           supabase
             .from("automation_edges")
@@ -455,8 +673,10 @@ export function AutomationNodesProvider({
         }
 
         /*
-         * Convert database steps into
-         * React Flow nodes.
+         * ----------------------------------------
+         * Convert database steps -> React Flow
+         * nodes
+         * ----------------------------------------
          */
 
         const loadedNodes: AutomationNode[] =
@@ -473,19 +693,31 @@ export function AutomationNodesProvider({
 
               data: {
                 label: step.title,
+
                 description:
                   step.description ?? "",
-                config: step.config,
+
+                config:
+                  step.config,
               },
             })
           );
 
         /*
-         * Convert database edges into
-         * React Flow edges.
+         * ----------------------------------------
+         * Convert database edges -> React Flow
+         * edges
+         * ----------------------------------------
+         *
+         * IMPORTANT:
+         *
+         * The database `type` is restored here.
+         *
+         * If an old database edge has no type,
+         * it defaults to smoothstep.
          */
 
-        const loadedEdges: Edge[] =
+        const loadedEdges: Edge<AutomationEdgeType>[] =
           edgesResult.data.map(
             (edge: AutomationEdge) => ({
               id: edge.id,
@@ -496,27 +728,40 @@ export function AutomationNodesProvider({
               target:
                 edge.target_step_id,
 
-              type: "smoothstep",
+              type:
+                (
+                  edge.type as
+                    | AutomationEdgeType
+                    | null
+                ) ?? "smoothstep",
 
               markerEnd: {
-                type: MarkerType.ArrowClosed,
+                type:
+                  MarkerType.ArrowClosed,
               },
             })
           );
 
         /*
-         * Loading from Supabase is NOT an
-         * editor action, so it must not
-         * enter undo history.
+         * Apply loaded graph to frontend.
          */
 
         setNodes(loadedNodes);
         setEdges(loadedEdges);
 
+        /*
+         * This becomes the clean/saved
+         * version of the graph.
+         */
+
         setSavedState({
           nodes: loadedNodes,
           edges: loadedEdges,
         });
+
+        /*
+         * Loading a graph resets undo/redo.
+         */
 
         setHistory({
           past: [],
@@ -553,6 +798,10 @@ export function AutomationNodesProvider({
     [automationId]
   );
 
+  /*
+   * Fetch graph when automation changes.
+   */
+
   useEffect(() => {
     void fetchGraph();
   }, [fetchGraph]);
@@ -562,20 +811,16 @@ export function AutomationNodesProvider({
    * Save graph
    * ----------------------------------------
    *
-   * Delegates to a single Postgres RPC
-   * (save_automation_graph) that upserts
-   * steps, deletes removed steps, and
-   * replaces edges inside one transaction.
+   * Sends BOTH nodes and edges to the RPC.
    *
-   * This avoids the old "shuffle existing
-   * rows to negative positions" workaround,
-   * which broke because automation_steps
-   * has a CHECK (position >= 0) constraint.
-   * The unique(automation_id, position)
-   * constraint is now DEFERRABLE INITIALLY
-   * DEFERRED (see migration), so the RPC can
-   * write steps straight to their final
-   * positions without any temporary shuffle.
+   * Edge type is explicitly included:
+   *
+   * {
+   *   id,
+   *   type,
+   *   source_step_id,
+   *   target_step_id
+   * }
    */
 
   const save = useCallback(
@@ -587,13 +832,14 @@ export function AutomationNodesProvider({
       setIsSaving(true);
       setError(null);
 
-      const supabase = createClient();
+      const supabase =
+        createClient();
 
       try {
         /*
-         * --------------------------------
-         * Prepare steps payload
-         * --------------------------------
+         * ----------------------------------------
+         * Steps
+         * ----------------------------------------
          */
 
         const stepsToSave =
@@ -623,14 +869,22 @@ export function AutomationNodesProvider({
           }));
 
         /*
-         * --------------------------------
-         * Prepare edges payload
-         * --------------------------------
+         * ----------------------------------------
+         * Edges
+         * ----------------------------------------
+         *
+         * IMPORTANT:
+         *
+         * `type` is persisted to Supabase.
          */
 
         const edgesToSave =
           edges.map((edge) => ({
             id: edge.id,
+
+            type:
+              edge.type ??
+              "smoothstep",
 
             source_step_id:
               edge.source,
@@ -640,9 +894,9 @@ export function AutomationNodesProvider({
           }));
 
         /*
-         * --------------------------------
-         * Save via single atomic RPC
-         * --------------------------------
+         * ----------------------------------------
+         * Save everything through one RPC
+         * ----------------------------------------
          */
 
         const {
@@ -653,9 +907,11 @@ export function AutomationNodesProvider({
             p_automation_id:
               automationId,
 
-            p_steps: stepsToSave,
+            p_steps:
+              stepsToSave,
 
-            p_edges: edgesToSave,
+            p_edges:
+              edgesToSave,
           }
         );
 
@@ -664,9 +920,8 @@ export function AutomationNodesProvider({
         }
 
         /*
-         * --------------------------------
-         * Save successful
-         * --------------------------------
+         * The current frontend graph is now
+         * synchronized with the database.
          */
 
         setSavedState({
@@ -701,6 +956,18 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Keyboard shortcuts
    * ----------------------------------------
+   *
+   * Ctrl/Cmd + Z
+   *     Undo
+   *
+   * Ctrl/Cmd + Shift + Z
+   *     Redo
+   *
+   * Ctrl/Cmd + Y
+   *     Redo
+   *
+   * Ctrl/Cmd + S
+   *     Save
    */
 
   useEffect(() => {
@@ -709,9 +976,6 @@ export function AutomationNodesProvider({
     ) => {
       /*
        * Undo
-       *
-       * Ctrl + Z
-       * Cmd + Z
        */
 
       if (
@@ -730,13 +994,6 @@ export function AutomationNodesProvider({
 
       /*
        * Redo
-       *
-       * Ctrl + Shift + Z
-       * Cmd + Shift + Z
-       *
-       * Also supports:
-       * Ctrl + Y
-       * Cmd + Y
        */
 
       if (
@@ -761,9 +1018,6 @@ export function AutomationNodesProvider({
 
       /*
        * Save
-       *
-       * Ctrl + S
-       * Cmd + S
        */
 
       if (
@@ -806,6 +1060,7 @@ export function AutomationNodesProvider({
         onNodesChange,
         onEdgesChange,
         onConnect,
+        onEdgeClick,
 
         addNode,
         removeNode,
@@ -830,10 +1085,17 @@ export function AutomationNodesProvider({
   );
 }
 
+/*
+ * ----------------------------------------
+ * Hook
+ * ----------------------------------------
+ */
+
 export function useAutomationNodes() {
-  const context = useContext(
-    AutomationNodesContext
-  );
+  const context =
+    useContext(
+      AutomationNodesContext
+    );
 
   if (!context) {
     throw new Error(

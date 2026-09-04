@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,8 +8,15 @@ import { nodeConfigComponents } from "@/components/nodes/configs";
 import { useNewNodeSubTabsContext } from "../contexts/NewNodeSubTabsContext";
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
 
-import type { AutomationNode } from "@/types/nodes";
-import type { AutomationNodeType } from "@/types/nodes";
+import {
+  useReactFlow,
+  type XYPosition,
+} from "@xyflow/react";
+
+import type {
+  AutomationNode,
+  AutomationNodeType,
+} from "@/types/nodes";
 
 type SubTabContentProps = {
   tabId: string;
@@ -27,61 +36,156 @@ export default function SubTabContent({
 
   const { addNode } = useAutomationNodes();
 
-  const tab = tabs.find((tab) => tab.id === tabId);
+  const {
+    screenToFlowPosition,
+  } = useReactFlow();
+
+  const tab = tabs.find(
+    (tab) => tab.id === tabId
+  );
 
   if (!tab) {
     return null;
   }
 
-  const ConfigComponent = nodeConfigComponents[type];
+  const ConfigComponent =
+    nodeConfigComponents[type];
 
   const handleAddNode = () => {
-  console.log("ADDING NODE CONFIG:", tab.config);
+    console.log(
+      "ADDING NODE CONFIG:",
+      tab.config
+    );
 
-  const node: AutomationNode = {
-    id: crypto.randomUUID(),
-    type,
-    position: {
-      x: 100,
-      y: 100,
-    },
-    data: {
-      label: tab.label,
-      description: tab.description,
-      config: tab.config,
-    },
+    /*
+     * ----------------------------------------
+     * Find the visible React Flow canvas
+     * ----------------------------------------
+     */
+
+    const canvas =
+      document.querySelector(
+        ".react-flow"
+      ) as HTMLElement | null;
+
+    if (!canvas) {
+      console.error(
+        "React Flow canvas not found"
+      );
+      return;
+    }
+
+    /*
+     * ----------------------------------------
+     * Calculate the center of the visible
+     * canvas in screen coordinates
+     * ----------------------------------------
+     */
+
+    const rect =
+      canvas.getBoundingClientRect();
+
+    const centerX =
+      rect.left + rect.width / 2;
+
+    const centerY =
+      rect.top + rect.height / 2;
+
+    /*
+     * ----------------------------------------
+     * Convert screen coordinates to React Flow
+     * coordinates so this also works correctly
+     * when the canvas is zoomed or panned.
+     * ----------------------------------------
+     */
+
+    const center: XYPosition =
+      screenToFlowPosition({
+        x: centerX,
+        y: centerY,
+      });
+
+    /*
+     * ----------------------------------------
+     * Create node
+     * ----------------------------------------
+     *
+     * Offset the node slightly so its center
+     * is positioned at the canvas center.
+     *
+     * Adjust these values if your node size
+     * changes.
+     */
+
+    const node: AutomationNode = {
+      id: crypto.randomUUID(),
+
+      type,
+
+      position: {
+        x: center.x - 100,
+        y: center.y - 50,
+      },
+
+      data: {
+        label: tab.label,
+        description: tab.description,
+        config: tab.config,
+      },
+    };
+
+    console.log(
+      "NODE CREATED:",
+      node
+    );
+
+    /*
+     * ----------------------------------------
+     * Add node
+     * ----------------------------------------
+     */
+
+    addNode(
+      node,
+      node.position
+    );
+
+    /*
+     * ----------------------------------------
+     * Close the sub-tab
+     * ----------------------------------------
+     */
+
+    removeTabById(tabId);
   };
-
-  console.log("NODE CREATED:", node);
-
-  addNode(node);
-  removeTabById(tabId);
-};
 
   return (
     <div className="space-y-6">
       {/* Common Node Information */}
-      <div className="space-y-4">
-        {tab.type !=="telegram" && <div className="space-y-2">
-          <label
-            htmlFor={`node-name-${tabId}`}
-            className="text-sm font-medium"
-          >
-            Name
-          </label>
 
-          <Input
-            id={`node-name-${tabId}`}
-            value={tab.label}
-            onChange={(e) =>
-              updateTab(tabId, {
-                label: e.target.value,
-              })
-            }
-            placeholder="Enter node name"
-          />
-        </div>
-          }
+      <div className="space-y-4">
+        {tab.type !== "telegram" && (
+          <div className="space-y-2">
+            <label
+              htmlFor={`node-name-${tabId}`}
+              className="text-sm font-medium"
+            >
+              Name
+            </label>
+
+            <Input
+              id={`node-name-${tabId}`}
+              value={tab.label}
+              onChange={(e) =>
+                updateTab(tabId, {
+                  label: e.target.value,
+                })
+              }
+              placeholder="Enter node name"
+            />
+          </div>
+        )}
+
         <div className="space-y-2">
           <label
             htmlFor={`node-description-${tabId}`}
@@ -95,7 +199,8 @@ export default function SubTabContent({
             value={tab.description}
             onChange={(e) =>
               updateTab(tabId, {
-                description: e.target.value,
+                description:
+                  e.target.value,
               })
             }
             placeholder="Describe what this node does"
@@ -105,17 +210,28 @@ export default function SubTabContent({
       </div>
 
       {/* Type-specific Configuration */}
-      <ConfigComponent
-  config={tab.config ?? {}}
-  onConfigChange={(config) => {
-    console.log("CONFIG CHANGED:", config);
 
-    updateTabConfig(tabId, config);
-  }}
-/>
+      <ConfigComponent
+        config={tab.config ?? {}}
+        onConfigChange={(config) => {
+          console.log(
+            "CONFIG CHANGED:",
+            config
+          );
+
+          updateTabConfig(
+            tabId,
+            config
+          );
+        }}
+      />
 
       {/* Add Node */}
-      <Button type="button" onClick={handleAddNode}>
+
+      <Button
+        type="button"
+        onClick={handleAddNode}
+      >
         Add Node
       </Button>
     </div>

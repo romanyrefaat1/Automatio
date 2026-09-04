@@ -16,9 +16,13 @@ import call_chatgpt from "./nodes/call_chatgpt";
 import assert_value from "./nodes/assert_value";
 import call_api from "./nodes/call_api";
 import telegram from "./nodes/telegram";
+import { end } from "./nodes/end";
 
 export async function dispatcher(workflowNode, browser, page) {
   switch (workflowNode.type) {
+    case "end":
+      return end(browser)
+    
     case "goto":
       return goto(workflowNode.config, page);
 

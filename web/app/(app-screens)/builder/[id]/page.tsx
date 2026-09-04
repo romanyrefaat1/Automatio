@@ -1,7 +1,9 @@
+import { ReactFlowProvider } from "@xyflow/react";
 import AutomationCanvas from "../components/AutomationCanvas";
 import { AutomationProvider } from "../contexts/AutomationContext";
 import { AutomationNodesProvider } from "../contexts/AutomationNodesContext";
 import { NewNodeSubTabsProvider } from "../contexts/NewNodeSubTabsContext";
+import { KeyboardShortcutsDialog } from "../components/KeyboardShortcutsDialog";
 
 export const instant = false;
 
@@ -16,13 +18,16 @@ const { id: automationId } = await params;
 
     return (
         <div className="w-screen h-screen">
+            <ReactFlowProvider>
             <AutomationProvider automationId={automationId}>
             <AutomationNodesProvider automationId={automationId}>
             <NewNodeSubTabsProvider>
+                <KeyboardShortcutsDialog />
                 <AutomationCanvas />
             </NewNodeSubTabsProvider>
             </AutomationNodesProvider>
             </AutomationProvider>
+            </ReactFlowProvider>
         </div>
     )
 }
