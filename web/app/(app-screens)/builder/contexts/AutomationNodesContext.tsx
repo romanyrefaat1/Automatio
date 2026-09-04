@@ -12,6 +12,8 @@ import {
   type XYPosition,
 } from "@xyflow/react";
 
+import ELK from "elkjs/lib/elk.bundled.js";
+
 import {
   createContext,
   useCallback,
@@ -91,7 +93,11 @@ type AutomationNodesContextType = {
   ) => void;
 
   /**
-   * Alt-click an edge to cycle its type:
+   * Ctrl/Cmd + click an edge:
+   * delete the edge.
+   *
+   * Alt/Option + click an edge:
+   * cycle its type:
    *
    * smoothstep -> straight
    * straight   -> step
@@ -110,9 +116,18 @@ type AutomationNodesContextType = {
     position?: XYPosition
   ) => void;
 
+  /**
+   * Remove a node and all connected edges.
+   */
   removeNode: (
     nodeId: string
   ) => void;
+
+  /**
+   * Automatically arrange the workflow
+   * using ELK.js.
+   */
+  autoLayout: () => Promise<void>;
 
   undo: () => void;
   redo: () => void;
@@ -141,6 +156,17 @@ type AutomationNodesProviderProps = {
   automationId: string;
   children: ReactNode;
 };
+
+/*
+ * ----------------------------------------
+ * ELK
+ * ----------------------------------------
+ */
+
+const elk = new ELK();
+
+const DEFAULT_NODE_WIDTH = 220;
+const DEFAULT_NODE_HEIGHT = 90;
 
 /*
  * ----------------------------------------
@@ -331,100 +357,106 @@ export function AutomationNodesProvider({
 
   /*
    * ----------------------------------------
-   * Edge type change
+   * Edge click
    * ----------------------------------------
    *
-   * Alt-click cycles:
+   * Ctrl/Cmd + click:
+   * Delete edge.
    *
-   * smoothstep -> straight
-   * straight   -> step
-   * step       -> smoothstep
-   *
-   * The new type is stored directly inside
-   * the React Flow edge object.
-   *
-   * Because updateGraph() is used, the
-   * modification is also added to undo
-   * history and makes the graph dirty.
+   * Alt/Option + click:
+   * Cycle edge type.
    */
 
- const onEdgeClick = useCallback(
-  (
-    event: React.MouseEvent,
-    edge: Edge<AutomationEdgeType>
-  ) => {
-    /*
-     * Ctrl/Cmd + click:
-     * Delete the edge.
-     */
-    if (event.ctrlKey || event.metaKey) {
-      event.preventDefault();
-      event.stopPropagation();
+  const onEdgeClick = useCallback(
+    (
+      event: React.MouseEvent,
+      edge: Edge<AutomationEdgeType>
+    ) => {
+      /*
+       * Ctrl/Cmd + click:
+       * Delete the edge.
+       */
 
-      updateGraph((currentState) => ({
-        ...currentState,
+      if (
+        event.ctrlKey ||
+        event.metaKey
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
 
-        edges: currentState.edges.filter(
-          (currentEdge) =>
-            currentEdge.id !== edge.id
-        ),
-      }));
+        updateGraph(
+          (currentState) => ({
+            ...currentState,
 
-      return;
-    }
+            edges:
+              currentState.edges.filter(
+                (currentEdge) =>
+                  currentEdge.id !==
+                  edge.id
+              ),
+          })
+        );
 
-    /*
-     * Alt + click:
-     * Cycle the edge type.
-     *
-     * smoothstep -> straight
-     * straight   -> step
-     * step       -> smoothstep
-     */
-    if (event.altKey) {
-      event.preventDefault();
-      event.stopPropagation();
+        return;
+      }
 
-      updateGraph((currentState) => {
-        let nextType: AutomationEdgeType;
+      /*
+       * Alt/Option + click:
+       * Cycle the edge type.
+       *
+       * smoothstep -> straight
+       * straight   -> step
+       * step       -> smoothstep
+       */
 
-        switch (edge.type) {
-          case "smoothstep":
-            nextType = "straight";
-            break;
+      if (event.altKey) {
+        event.preventDefault();
+        event.stopPropagation();
 
-          case "straight":
-            nextType = "step";
-            break;
+        updateGraph(
+          (currentState) => {
+            let nextType: AutomationEdgeType;
 
-          case "step":
-            nextType = "smoothstep";
-            break;
+            switch (edge.type) {
+              case "smoothstep":
+                nextType = "straight";
+                break;
 
-          default:
-            nextType = "smoothstep";
-        }
+              case "straight":
+                nextType = "step";
+                break;
 
-        return {
-          ...currentState,
+              case "step":
+                nextType = "smoothstep";
+                break;
 
-          edges: currentState.edges.map(
-            (currentEdge) =>
-              currentEdge.id === edge.id
-                ? {
-                    ...currentEdge,
-                    type: nextType,
-                  }
-                : currentEdge
-          ),
-        };
-      });
+              default:
+                nextType = "smoothstep";
+            }
 
-      return;
-    }
-  },
-  [updateGraph]
-);
+            return {
+              ...currentState,
+
+              edges:
+                currentState.edges.map(
+                  (currentEdge) =>
+                    currentEdge.id ===
+                    edge.id
+                      ? {
+                          ...currentEdge,
+                          type: nextType,
+                        }
+                      : currentEdge
+                ),
+            };
+          }
+        );
+
+        return;
+      }
+    },
+    [updateGraph]
+  );
 
   /*
    * ----------------------------------------
@@ -537,6 +569,212 @@ export function AutomationNodesProvider({
 
   /*
    * ----------------------------------------
+   * Auto layout
+   * ----------------------------------------
+   *
+   * Uses ELK.js to arrange the workflow
+   * from left -> right.
+   *
+   * Example:
+   *
+   * goto -> click -> fill -> press
+   *
+   * Branches become:
+   *
+   *                  -> fill
+   * condition ->
+   *                  -> screenshot
+   */
+
+  const autoLayout = useCallback(
+    async () => {
+      if (nodes.length === 0) {
+        return;
+      }
+
+      try {
+        /*
+         * Build an ELK graph from the current
+         * React Flow graph.
+         */
+
+        const graph = {
+          id: "root",
+
+          layoutOptions: {
+            /*
+             * Layered graph layout.
+             */
+
+            "elk.algorithm": "layered",
+
+            /*
+             * Left -> right.
+             */
+
+            "elk.direction": "DOWN",
+
+            /*
+             * Horizontal spacing between
+             * nodes in the same layer.
+             */
+
+            "elk.spacing.nodeNode": "50",
+
+            /*
+             * Horizontal spacing between
+             * layers.
+             */
+
+            "elk.layered.spacing.nodeNodeBetweenLayers":
+              "100",
+
+            /*
+             * Additional space around
+             * edges/nodes.
+             */
+
+            "elk.layered.spacing.edgeNodeBetweenLayers":
+              "40",
+
+            /*
+             * Orthogonal routing works well
+             * for workflow/tree diagrams.
+             */
+
+            "elk.edgeRouting":
+              "ORTHOGONAL",
+
+            /*
+             * Good automatic node placement.
+             */
+
+            "elk.layered.nodePlacement.strategy":
+              "NETWORK_SIMPLEX",
+
+            /*
+             * Try to minimize edge crossings.
+             */
+
+            "elk.layered.crossingMinimization.strategy":
+              "LAYER_SWEEP",
+          },
+
+          /*
+           * React Flow nodes -> ELK children.
+           */
+
+          children: nodes.map((node) => ({
+            id: node.id,
+
+            width:
+              node.measured?.width ??
+              node.width ??
+              DEFAULT_NODE_WIDTH,
+
+            height:
+              node.measured?.height ??
+              node.height ??
+              DEFAULT_NODE_HEIGHT,
+          })),
+
+          /*
+           * React Flow edges -> ELK edges.
+           */
+
+          edges: edges.map((edge) => ({
+            id: edge.id,
+
+            sources: [edge.source],
+
+            targets: [edge.target],
+          })),
+        };
+
+        /*
+         * Ask ELK to calculate positions.
+         */
+
+        const result =
+          await elk.layout(graph);
+
+        /*
+         * Apply ELK positions to the
+         * React Flow nodes.
+         */
+
+        const layoutedNodes =
+          nodes.map((node) => {
+            const layoutNode =
+              result.children?.find(
+                (child) =>
+                  child.id === node.id
+              );
+
+            if (!layoutNode) {
+              return node;
+            }
+
+            return {
+              ...node,
+
+              position: {
+                x:
+                  layoutNode.x ??
+                  node.position.x,
+
+                y:
+                  layoutNode.y ??
+                  node.position.y,
+              },
+            };
+          });
+
+        /*
+         * Put the layout change into
+         * undo history.
+         */
+
+        updateGraph(
+          (currentState) => ({
+            ...currentState,
+
+            nodes: layoutedNodes,
+          }),
+          true
+        );
+
+        /*
+         * Tell the React Flow canvas that
+         * layout finished.
+         *
+         * The canvas can listen for this
+         * and call fitView().
+         */
+
+        window.dispatchEvent(
+          new CustomEvent(
+            "automatio:auto-layout-complete"
+          )
+        );
+      } catch (err) {
+        console.error(
+          "Failed to auto-layout automation:",
+          err
+        );
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to auto-layout automation"
+        );
+      }
+    },
+    [nodes, edges, updateGraph]
+  );
+
+  /*
+   * ----------------------------------------
    * Undo
    * ----------------------------------------
    */
@@ -555,11 +793,11 @@ export function AutomationNodesProvider({
             currentHistory.past.length - 1
           ];
 
-        const currentState: AutomationEditorState =
-          {
-            nodes,
-            edges,
-          };
+        const currentState:
+          AutomationEditorState = {
+          nodes,
+          edges,
+        };
 
         setNodes(previous.nodes);
         setEdges(previous.edges);
@@ -595,11 +833,11 @@ export function AutomationNodesProvider({
         const next =
           currentHistory.future[0];
 
-        const currentState: AutomationEditorState =
-          {
-            nodes,
-            edges,
-          };
+        const currentState:
+          AutomationEditorState = {
+          nodes,
+          edges,
+        };
 
         setNodes(next.nodes);
         setEdges(next.edges);
@@ -679,7 +917,8 @@ export function AutomationNodesProvider({
          * ----------------------------------------
          */
 
-        const loadedNodes: AutomationNode[] =
+        const loadedNodes:
+          AutomationNode[] =
           stepsResult.data.map(
             (step: AutomationStep) => ({
               id: step.id,
@@ -708,16 +947,10 @@ export function AutomationNodesProvider({
          * Convert database edges -> React Flow
          * edges
          * ----------------------------------------
-         *
-         * IMPORTANT:
-         *
-         * The database `type` is restored here.
-         *
-         * If an old database edge has no type,
-         * it defaults to smoothstep.
          */
 
-        const loadedEdges: Edge<AutomationEdgeType>[] =
+        const loadedEdges:
+          Edge<AutomationEdgeType>[] =
           edgesResult.data.map(
             (edge: AutomationEdge) => ({
               id: edge.id,
@@ -750,8 +983,8 @@ export function AutomationNodesProvider({
         setEdges(loadedEdges);
 
         /*
-         * This becomes the clean/saved
-         * version of the graph.
+         * Loaded graph becomes the
+         * clean/saved version.
          */
 
         setSavedState({
@@ -799,7 +1032,9 @@ export function AutomationNodesProvider({
   );
 
   /*
-   * Fetch graph when automation changes.
+   * ----------------------------------------
+   * Fetch graph when automation changes
+   * ----------------------------------------
    */
 
   useEffect(() => {
@@ -813,14 +1048,7 @@ export function AutomationNodesProvider({
    *
    * Sends BOTH nodes and edges to the RPC.
    *
-   * Edge type is explicitly included:
-   *
-   * {
-   *   id,
-   *   type,
-   *   source_step_id,
-   *   target_step_id
-   * }
+   * Edge type is explicitly persisted.
    */
 
   const save = useCallback(
@@ -872,10 +1100,6 @@ export function AutomationNodesProvider({
          * ----------------------------------------
          * Edges
          * ----------------------------------------
-         *
-         * IMPORTANT:
-         *
-         * `type` is persisted to Supabase.
          */
 
         const edgesToSave =
@@ -920,8 +1144,8 @@ export function AutomationNodesProvider({
         }
 
         /*
-         * The current frontend graph is now
-         * synchronized with the database.
+         * Current frontend graph is now
+         * synchronized with Supabase.
          */
 
         setSavedState({
@@ -968,19 +1192,25 @@ export function AutomationNodesProvider({
    *
    * Ctrl/Cmd + S
    *     Save
+   *
+   * Ctrl/Cmd + Shift + L
+   *     Auto layout
    */
 
   useEffect(() => {
     const handleKeyDown = (
       event: KeyboardEvent
     ) => {
+      const modifier =
+        event.ctrlKey ||
+        event.metaKey;
+
       /*
        * Undo
        */
 
       if (
-        (event.ctrlKey ||
-          event.metaKey) &&
+        modifier &&
         event.key.toLowerCase() ===
           "z" &&
         !event.shiftKey
@@ -997,8 +1227,7 @@ export function AutomationNodesProvider({
        */
 
       if (
-        (event.ctrlKey ||
-          event.metaKey) &&
+        modifier &&
         (
           (
             event.key.toLowerCase() ===
@@ -1021,14 +1250,32 @@ export function AutomationNodesProvider({
        */
 
       if (
-        (event.ctrlKey ||
-          event.metaKey) &&
+        modifier &&
         event.key.toLowerCase() ===
           "s"
       ) {
         event.preventDefault();
 
         void save();
+
+        return;
+      }
+
+      /*
+       * Auto layout
+       */
+
+      if (
+        modifier &&
+        event.shiftKey &&
+        event.key.toLowerCase() ===
+          "l"
+      ) {
+        event.preventDefault();
+
+        void autoLayout();
+
+        return;
       }
     };
 
@@ -1043,7 +1290,12 @@ export function AutomationNodesProvider({
         handleKeyDown
       );
     };
-  }, [undo, redo, save]);
+  }, [
+    undo,
+    redo,
+    save,
+    autoLayout,
+  ]);
 
   /*
    * ----------------------------------------
@@ -1064,6 +1316,8 @@ export function AutomationNodesProvider({
 
         addNode,
         removeNode,
+
+        autoLayout,
 
         undo,
         redo,

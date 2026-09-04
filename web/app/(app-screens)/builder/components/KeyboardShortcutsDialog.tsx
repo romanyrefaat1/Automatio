@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 type Shortcut = {
   keys: string[];
   description: string;
@@ -57,6 +59,10 @@ const shortcutGroups: ShortcutGroup[] = [
         description: "Cycle an edge's type",
       },
       {
+        keys: ["Ctrl", "Shift", "L"],
+        description: "Auto-layout the workflow",
+      },
+      {
         keys: ["Delete"],
         description: "Delete the selected node or edge",
       },
@@ -69,11 +75,9 @@ function isMac() {
     return false;
   }
 
-  return (
-    navigator.platform
-      .toLowerCase()
-      .includes("mac")
-  );
+  return navigator.platform
+    .toLowerCase()
+    .includes("mac");
 }
 
 function ShortcutKeys({
@@ -191,54 +195,56 @@ export function KeyboardShortcutsDialog() {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="mt-2 space-y-6">
-          {shortcutGroups.map(
-            (group) => (
-              <section
-                key={group.title}
-              >
-                <h3 className="mb-2 text-sm font-medium text-muted-foreground">
-                  {group.title}
-                </h3>
+        <ScrollArea className="max-h-[60vh] pr-4">
+          <div className="mt-2 space-y-6">
+            {shortcutGroups.map(
+              (group) => (
+                <section
+                  key={group.title}
+                >
+                  <h3 className="mb-2 text-sm font-medium text-muted-foreground">
+                    {group.title}
+                  </h3>
 
-                <div className="overflow-hidden rounded-lg border">
-                  {group.shortcuts.map(
-                    (
-                      shortcut,
-                      index
-                    ) => (
-                      <div
-                        key={`${group.title}-${shortcut.description}`}
-                        className={[
-                          "flex items-center justify-between gap-6 px-4 py-3",
-                          index <
-                          group
-                            .shortcuts
-                            .length -
-                            1
-                            ? "border-b"
-                            : "",
-                        ].join(" ")}
-                      >
-                        <span className="text-sm">
-                          {
-                            shortcut.description
-                          }
-                        </span>
+                  <div className="overflow-hidden rounded-lg border">
+                    {group.shortcuts.map(
+                      (
+                        shortcut,
+                        index
+                      ) => (
+                        <div
+                          key={`${group.title}-${shortcut.description}`}
+                          className={[
+                            "flex items-center justify-between gap-6 px-4 py-3",
+                            index <
+                            group
+                              .shortcuts
+                              .length -
+                              1
+                              ? "border-b"
+                              : "",
+                          ].join(" ")}
+                        >
+                          <span className="text-sm">
+                            {
+                              shortcut.description
+                            }
+                          </span>
 
-                        <ShortcutKeys
-                          keys={
-                            shortcut.keys
-                          }
-                        />
-                      </div>
-                    )
-                  )}
-                </div>
-              </section>
-            )
-          )}
-        </div>
+                          <ShortcutKeys
+                            keys={
+                              shortcut.keys
+                            }
+                          />
+                        </div>
+                      )
+                    )}
+                  </div>
+                </section>
+              )
+            )}
+          </div>
+        </ScrollArea>
 
         <div className="mt-2 flex items-center justify-between border-t pt-4">
           <span className="text-xs text-muted-foreground">
