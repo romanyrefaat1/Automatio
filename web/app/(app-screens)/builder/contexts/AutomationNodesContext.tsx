@@ -148,6 +148,65 @@ const DEFAULT_NODE_WIDTH = 220;
 const DEFAULT_NODE_HEIGHT = 90;
 
 /*
+ * Nodes with branching output (condition) or a distinct visual
+ * footprint get a size hint even before React Flow has ever
+ * measured them, so the very first auto-layout (before any
+ * render pass) doesn't squash everything into one flat box.
+ * This is only a fallback — `node.measured` (real DOM size)
+ * always wins once it's available.
+ */
+const NODE_SIZE_HINTS: Record<
+  string,
+  { width: number; height: number }
+> = {
+  condition: {
+    width: 260,
+    height: 120,
+  },
+
+  loop: {
+    width: 260,
+    height: 120,
+  },
+
+  parallel: {
+    width: 260,
+    height: 110,
+  },
+
+  trigger: {
+    width: 200,
+    height: 80,
+  },
+};
+
+function getNodeSize(node: AutomationNode) {
+  const hint = NODE_SIZE_HINTS[node.type ?? ""];
+
+  return {
+    width:
+      node.measured?.width ??
+      node.width ??
+      hint?.width ??
+      DEFAULT_NODE_WIDTH,
+
+    height:
+      node.measured?.height ??
+      node.height ??
+      hint?.height ??
+      DEFAULT_NODE_HEIGHT,
+  };
+}
+
+/*
+ * Ordered port sides for branching nodes. Keeping this order
+ * consistent (true before false, always) is what makes
+ * condition branches lay out predictably instead of the two
+ * outgoing edges swapping sides between layout runs.
+ */
+const BRANCH_HANDLE_ORDER = ["true", "false"];
+
+/*
  * ----------------------------------------
  * Provider
  * ----------------------------------------
@@ -250,7 +309,7 @@ export function AutomationNodesProvider({
         JSON.stringify(previousState) ===
         JSON.stringify(nextState)
       ) {
-        return;
+        return false;
       }
 
       setNodes(nextState.nodes);
@@ -267,6 +326,8 @@ export function AutomationNodesProvider({
           })
         );
       }
+
+      return true;
     },
     [nodes, edges]
   );
@@ -570,6 +631,29 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Auto layout
    * ----------------------------------------
+   *
+   * Runs the full graph through ELK's layered algorithm.
+   *
+   * Improvements over a plain "dump every node/edge into ELK"
+   * approach:
+   *
+   * 1. Branching nodes (condition, and anything else that uses
+   *    named source handles like "true"/"false") get FIXED_ORDER
+   *    ports, with branch handles always listed in the same
+   *    order. Without this, ELK is free to route the "true" and
+   *    "false" edges out of either side of the node, so which
+   *    branch appears on the left vs right can flip between
+   *    layout runs even though nothing about the graph changed.
+   *
+   * 2. Disconnected nodes/subgraphs get real separation instead
+   *    of ELK's default handling, which can place them
+   *    overlapping other parts of the graph.
+   *
+   * 3. Node sizing prefers real measured dimensions, and only
+   *    falls back to a type-aware size hint (see
+   *    NODE_SIZE_HINTS) rather than one flat box for every node
+   *    type — so the very first layout (before anything has
+   *    rendered) still looks proportionate.
    */
 
   const autoLayout = useCallback(
@@ -579,6 +663,146 @@ export function AutomationNodesProvider({
       }
 
       try {
+        /*
+         * Group outgoing edges per source node so we can hand
+         * ELK a stable, ordered list of ports for any node that
+         * has more than one outgoing edge. Single-output nodes
+         * don't need explicit ports — ELK handles those fine on
+         * its own.
+         */
+
+        const outgoingBySource = new Map<
+          string,
+          Edge<AutomationEdgeType>[]
+        >();
+
+        for (const edge of edges) {
+          const existing =
+            outgoingBySource.get(edge.source) ??
+            [];
+
+          existing.push(edge);
+
+          outgoingBySource.set(
+            edge.source,
+            existing
+          );
+        }
+
+        /*
+         * For a branching node, sort its outgoing edges so
+         * "true" always comes before "false" (and anything
+         * without a recognized handle falls after both, in a
+         * stable order). This is what keeps the branch layout
+         * consistent across runs.
+         */
+
+        const sortedOutgoing = (
+          sourceId: string
+        ) => {
+          const outgoing =
+            outgoingBySource.get(
+              sourceId
+            ) ?? [];
+
+          return [...outgoing].sort(
+            (a, b) => {
+              const aIndex =
+                BRANCH_HANDLE_ORDER.indexOf(
+                  a.sourceHandle ?? ""
+                );
+
+              const bIndex =
+                BRANCH_HANDLE_ORDER.indexOf(
+                  b.sourceHandle ?? ""
+                );
+
+              const aRank =
+                aIndex === -1
+                  ? BRANCH_HANDLE_ORDER.length
+                  : aIndex;
+
+              const bRank =
+                bIndex === -1
+                  ? BRANCH_HANDLE_ORDER.length
+                  : bIndex;
+
+              return aRank - bRank;
+            }
+          );
+        };
+
+        const children = nodes.map(
+          (node) => {
+            const size = getNodeSize(node);
+            const outgoing = sortedOutgoing(
+              node.id
+            );
+
+            /*
+             * Only nodes with more than one
+             * outgoing edge need explicit
+             * ports — this keeps the ELK
+             * graph minimal for the common
+             * single-output case.
+             */
+
+            const needsPorts =
+              outgoing.length > 1;
+
+            return {
+              id: node.id,
+              width: size.width,
+              height: size.height,
+
+              ...(needsPorts
+                ? {
+                    layoutOptions: {
+                      "elk.portConstraints":
+                        "FIXED_ORDER",
+                    },
+
+                    ports: outgoing.map(
+                      (edge, index) => ({
+                        id: `${node.id}__port__${edge.sourceHandle ?? index}`,
+
+                        layoutOptions: {
+                          "elk.port.side":
+                            "SOUTH",
+
+                          "elk.port.index":
+                            String(index),
+                        },
+                      })
+                    ),
+                  }
+                : {}),
+            };
+          }
+        );
+
+        const portLookup = new Map<
+          string,
+          string
+        >();
+
+        for (const node of nodes) {
+          const outgoing = sortedOutgoing(
+            node.id
+          );
+
+          if (outgoing.length <= 1) {
+            continue;
+          }
+
+          outgoing.forEach((edge, index) => {
+            portLookup.set(
+              edge.id,
+              `${node.id}__port__${edge.sourceHandle ?? index}`
+            );
+          });
+        }
+
         const graph = {
           id: "root",
 
@@ -587,10 +811,10 @@ export function AutomationNodesProvider({
 
             "elk.direction": "DOWN",
 
-            "elk.spacing.nodeNode": "50",
+            "elk.spacing.nodeNode": "60",
 
             "elk.layered.spacing.nodeNodeBetweenLayers":
-              "100",
+              "110",
 
             "elk.layered.spacing.edgeNodeBetweenLayers":
               "40",
@@ -603,26 +827,31 @@ export function AutomationNodesProvider({
 
             "elk.layered.crossingMinimization.strategy":
               "LAYER_SWEEP",
+
+            /*
+             * Keep disconnected pieces of the
+             * graph from overlapping — each
+             * connected component gets laid
+             * out separately, then
+             * repositioned next to the others.
+             */
+
+            "elk.separateConnectedComponents":
+              "true",
+
+            "elk.spacing.componentComponent":
+              "120",
           },
 
-          children: nodes.map((node) => ({
-            id: node.id,
-
-            width:
-              node.measured?.width ??
-              node.width ??
-              DEFAULT_NODE_WIDTH,
-
-            height:
-              node.measured?.height ??
-              node.height ??
-              DEFAULT_NODE_HEIGHT,
-          })),
+          children,
 
           edges: edges.map((edge) => ({
             id: edge.id,
 
-            sources: [edge.source],
+            sources: [
+              portLookup.get(edge.id) ??
+                edge.source,
+            ],
 
             targets: [edge.target],
           })),
@@ -658,7 +887,7 @@ export function AutomationNodesProvider({
             };
           });
 
-        updateGraph(
+        const changed = updateGraph(
           (currentState) => ({
             ...currentState,
 
@@ -667,11 +896,21 @@ export function AutomationNodesProvider({
           true
         );
 
-        window.dispatchEvent(
-          new CustomEvent(
-            "automatio:auto-layout-complete"
-          )
-        );
+        /*
+         * Only tell listeners a layout happened
+         * if positions actually moved — firing
+         * this on a no-op layout would make a
+         * listener think something changed when
+         * it didn't.
+         */
+
+        if (changed) {
+          window.dispatchEvent(
+            new CustomEvent(
+              "automatio:auto-layout-complete"
+            )
+          );
+        }
       } catch (err) {
         console.error(
           "Failed to auto-layout automation:",
