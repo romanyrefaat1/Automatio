@@ -1,3 +1,4 @@
+/* web/components/nodes/configs/AssertTextConfig.tsx */
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { VariableSelector } from "@/app/(app-screens)/builder/components/InputVariables";
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 type Config = {
   variable?: string;
@@ -95,16 +99,15 @@ export default function AssertTextConfig({
             Variable
           </Label>
 
-          <Input
-            id="assert-text-variable-input"
-            placeholder="Variable name"
+          <VariableSelector
             value={config.variable ?? ""}
-            onChange={(e) =>
+            onValueChange={(value) =>
               onConfigChange({
                 ...config,
-                variable: e.target.value,
+                variable: value,
               })
             }
+            placeholder="Select a variable..."
           />
         </div>
       ) : (
@@ -132,16 +135,16 @@ export default function AssertTextConfig({
           Expected Text
         </Label>
 
-        <Input
-          id="assert-text-expected"
-          placeholder="Expected value"
+        <InputOrTextareaWithVariablesSupport
+          type="input"
           value={config.expected ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onConfigChange({
               ...config,
-              expected: e.target.value,
+              expected: value,
             })
           }
+          placeholder="Expected value"
         />
       </div>
 

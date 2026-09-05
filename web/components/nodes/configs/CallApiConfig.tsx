@@ -1,3 +1,4 @@
+/* web/components/nodes/configs/CallApiConfig.tsx */
 "use client";
 
 import { useState } from "react";
@@ -13,6 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 type KeyValue = {
   key: string;
@@ -169,16 +172,16 @@ export default function CallApiConfig({
           API URL
         </Label>
 
-        <Input
-          id="api-url"
-          placeholder="https://api.example.com/users"
+        <InputOrTextareaWithVariablesSupport
+          type="input"
           value={config.url ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onConfigChange({
               ...config,
-              url: e.target.value,
+              url: value,
             })
           }
+          placeholder="https://api.example.com/users"
         />
       </div>
 
@@ -219,18 +222,19 @@ export default function CallApiConfig({
                 }
               />
 
-              <Input
-                placeholder="Value"
+              <InputOrTextareaWithVariablesSupport
+                type="input"
                 value={row.value}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   updateRow(
                     headers,
                     index,
                     "value",
-                    e.target.value,
+                    value,
                     updateHeaders
                   )
                 }
+                placeholder="Value"
               />
 
               <Button
@@ -289,18 +293,19 @@ export default function CallApiConfig({
                 }
               />
 
-              <Input
-                placeholder="Value"
+              <InputOrTextareaWithVariablesSupport
+                type="input"
                 value={row.value}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   updateRow(
                     query,
                     index,
                     "value",
-                    e.target.value,
+                    value,
                     updateQuery
                   )
                 }
+                placeholder="Value"
               />
 
               <Button
@@ -328,16 +333,17 @@ export default function CallApiConfig({
             Body
           </Label>
 
-          <Input
-            id="api-body"
-            placeholder="Request body"
+          <InputOrTextareaWithVariablesSupport
+            type="textarea"
             value={config.body ?? ""}
-            onChange={(e) =>
+            onValueChange={(value) =>
               onConfigChange({
                 ...config,
-                body: e.target.value,
+                body: value,
               })
             }
+            placeholder="Request body"
+            rows={4}
           />
         </div>
       )}

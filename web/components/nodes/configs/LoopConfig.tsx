@@ -1,3 +1,4 @@
+/* web/components/nodes/configs/LoopConfig.tsx */
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { VariableSelector } from "@/app/(app-screens)/builder/components/InputVariables";
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 type ValueType =
   | "static"
@@ -138,28 +142,29 @@ function ValueEditor({
       </Select>
 
       {value.type === "static" && (
-        <Input
-          placeholder="Value"
+        <InputOrTextareaWithVariablesSupport
+          type="input"
           value={value.value ?? ""}
-          onChange={(e) =>
+          onValueChange={(nextValue) =>
             onChange({
               ...value,
-              value: e.target.value,
+              value: nextValue,
             })
           }
+          placeholder="Value"
         />
       )}
 
       {value.type === "variable" && (
-        <Input
-          placeholder="Variable name"
+        <VariableSelector
           value={value.name ?? ""}
-          onChange={(e) =>
+          onValueChange={(name) =>
             onChange({
               ...value,
-              name: e.target.value,
+              name,
             })
           }
+          placeholder="Select a variable..."
         />
       )}
 

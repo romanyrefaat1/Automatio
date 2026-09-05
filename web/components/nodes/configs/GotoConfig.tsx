@@ -1,6 +1,6 @@
+/* web/components/nodes/configs/GotoConfig.tsx */
 "use client";
 
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -9,6 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 import type { NodeConfigComponentProps } from "./index";
 
@@ -26,12 +28,13 @@ export default function GotoConfig({
       <div className="space-y-2">
         <Label>URL</Label>
 
-        <Input
+        <InputOrTextareaWithVariablesSupport
+          type="input"
           value={config.url ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onConfigChange({
               ...config,
-              url: e.target.value,
+              url: value,
             })
           }
           placeholder="https://example.com"

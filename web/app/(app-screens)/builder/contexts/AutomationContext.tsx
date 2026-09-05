@@ -14,10 +14,12 @@ import { createClient } from "@/lib/supabase/client";
 
 type Automation = Tables<"automations">;
 type AutomationSchedule = Tables<"automation_schedules">;
+type AutomationStep = Tables<"automation_steps">;
 
 type AutomationContextType = {
   automation: Automation | null;
   schedules: AutomationSchedule[];
+  automationVariables: AutomationStep[];
 
   loading: boolean;
   error: string | null;
@@ -44,6 +46,9 @@ export function AutomationProvider({
   const [schedules, setSchedules] =
     useState<AutomationSchedule[]>([]);
 
+  const [automationVariables, setAutomationVariables] =
+    useState<AutomationStep[]>([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -66,6 +71,7 @@ export function AutomationProvider({
       const [
         automationResult,
         schedulesResult,
+        automationStepsThatHaveVariables,
       ] = await Promise.all([
         supabase
           .from("automations")
@@ -80,6 +86,12 @@ export function AutomationProvider({
           .order("created_at", {
             ascending: true,
           }),
+
+        supabase
+          .from("automation_steps")
+          .select("*")
+          .eq("automation_id", automationId)
+          .not("config->>save_as", "is", null),
       ]);
 
       if (automationResult.error) {
@@ -90,8 +102,24 @@ export function AutomationProvider({
         throw schedulesResult.error;
       }
 
+      if (automationStepsThatHaveVariables.error) {
+        throw automationStepsThatHaveVariables.error;
+      }
+
       setAutomation(automationResult.data);
-      setSchedules(schedulesResult.data ?? []);
+
+      setSchedules(
+        schedulesResult.data ?? []
+      );
+
+      setAutomationVariables(
+        automationStepsThatHaveVariables.data ?? []
+      );
+
+      console.log(
+        "Automation variables:",
+        automationStepsThatHaveVariables.data
+      );
     } catch (err) {
       console.error(
         "Failed to fetch automation:",
@@ -100,6 +128,7 @@ export function AutomationProvider({
 
       setAutomation(null);
       setSchedules([]);
+      setAutomationVariables([]);
 
       setError(
         err instanceof Error
@@ -120,6 +149,7 @@ export function AutomationProvider({
       value={{
         automation,
         schedules,
+        automationVariables,
 
         loading,
         error,

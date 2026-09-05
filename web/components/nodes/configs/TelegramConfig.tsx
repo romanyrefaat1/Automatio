@@ -1,3 +1,4 @@
+/* web/components/nodes/configs/TelegramConfig.tsx */
 "use client";
 
 import { useState } from "react";
@@ -7,7 +8,6 @@ import Link from "next/link";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import {
@@ -42,6 +42,8 @@ import {
 
 import { useUser } from "@/contexts/user-context";
 import { addIntegration } from "@/actions/integrations";
+
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 import type { NodeConfigComponentProps } from "./index";
 
@@ -255,12 +257,13 @@ export default function TelegramConfig({
         <div className="space-y-2">
           <Label>Message</Label>
 
-          <Textarea
+          <InputOrTextareaWithVariablesSupport
+            type="textarea"
             value={config.message ?? ""}
-            onChange={(e) =>
+            onValueChange={(value) =>
               onConfigChange({
                 ...config,
-                message: e.target.value,
+                message: value,
               })
             }
             placeholder="Automation completed successfully."
@@ -665,65 +668,65 @@ export default function TelegramConfig({
                           Open:
                           <div className="mt-2 rounded-md bg-muted p-2">
                             <code className="break-all text-xs">
-                              https://api.telegram.org/bot{connectBotToken ? connectBotToken: "YOUR_BOT_TOKEN"}/getUpdates
-                            </code>
-                          </div>
-                        </li>
-
-                        <li>
-                          Find{" "}
-                          <span className="font-mono text-xs">
-                            message.chat.id
-                          </span>{" "}
-                          in the response.
-                        </li>
-                      </ol>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Chat ID</Label>
-
-                    <Input
-                      value={connectChatId}
-                      onChange={(e) =>
-                        setConnectChatId(e.target.value)
-                      }
-                      placeholder="123456789"
-                    />
-
-                    <p className="text-xs text-muted-foreground">
-                      Enter the Chat ID where Automatio should send
-                      messages.
-                    </p>
-                  </div>
-
-                  {connectBotError && (
-                    <p className="text-sm text-destructive">
-                      {connectBotError}
-                    </p>
-                  )}
-
-                  <button
-                    type="button"
-                    disabled={
-                      connectingBot ||
-                      !connectBotToken.trim() ||
-                      !connectChatId.trim()
-                    }
-                    onClick={handleConnectBot}
-                    className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-50"
-                  >
-                    {connectingBot
-                      ? "Connecting..."
-                      : "Connect Telegram bot"}
-                  </button>
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
+                              https://api.telegram.org/bot{connectBotToken ? connectBotToken: "YOUR_BOT_TOKEN"}/getUpdates 
+                            </code> 
+                          </div> 
+                        </li> 
+ 
+                        <li> 
+                          Find{" "} 
+                          <span className="font-mono text-xs"> 
+                            message.chat.id 
+                          </span>{" "} 
+                          in the response. 
+                        </li> 
+                      </ol> 
+                    </div> 
+                  </div> 
+ 
+                  <div className="space-y-2"> 
+                    <Label>Chat ID</Label> 
+ 
+                    <Input 
+                      value={connectChatId} 
+                      onChange={(e) => 
+                        setConnectChatId(e.target.value) 
+                      } 
+                      placeholder="123456789" 
+                    /> 
+ 
+                    <p className="text-xs text-muted-foreground"> 
+                      Enter the Chat ID where Automatio should send 
+                      messages. 
+                    </p> 
+                  </div> 
+ 
+                  {connectBotError && ( 
+                    <p className="text-sm text-destructive"> 
+                      {connectBotError} 
+                    </p> 
+                  )} 
+ 
+                  <button 
+                    type="button" 
+                    disabled={ 
+                      connectingBot || 
+                      !connectBotToken.trim() || 
+                      !connectChatId.trim() 
+                    } 
+                    onClick={handleConnectBot} 
+                    className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-50" 
+                  > 
+                    {connectingBot 
+                      ? "Connecting..." 
+                      : "Connect Telegram bot"} 
+                  </button> 
+                </div> 
+              </ScrollArea> 
+            </TabsContent> 
+          </Tabs> 
+        </DialogContent> 
+      </Dialog> 
+    </> 
+  ); 
 }

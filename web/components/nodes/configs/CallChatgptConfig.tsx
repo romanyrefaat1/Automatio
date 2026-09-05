@@ -1,8 +1,10 @@
+/* web/components/nodes/configs/CallChatgptConfig.tsx */
 "use client";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 import type { NodeConfigComponentProps } from "./index";
 
@@ -14,12 +16,13 @@ export default function CallChatGPTConfig({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>Prompt</Label>
-        <Textarea
+        <InputOrTextareaWithVariablesSupport
+          type="textarea"
           value={config.query ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onConfigChange({
               ...config,
-              query: e.target.value,
+              query: value,
             })
           }
           placeholder="Summarize the page content..."

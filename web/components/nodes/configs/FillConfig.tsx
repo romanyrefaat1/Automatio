@@ -1,7 +1,10 @@
+/* web/components/nodes/configs/FillConfig.tsx */
 "use client";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 import type { NodeConfigComponentProps } from "./index";
 
@@ -27,12 +30,13 @@ export default function FillConfig({
 
       <div className="space-y-2">
         <Label>Value</Label>
-        <Input
+        <InputOrTextareaWithVariablesSupport
+          type="input"
           value={config.value ?? ""}
-          onChange={(e) =>
+          onValueChange={(value) =>
             onConfigChange({
               ...config,
-              value: e.target.value,
+              value,
             })
           }
           placeholder="Enter value..."

@@ -1,3 +1,4 @@
+/* web/components/nodes/configs/ConditionConfig.tsx */
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { VariableSelector } from "@/app/(app-screens)/builder/components/InputVariables";
+import { InputOrTextareaWithVariablesSupport } from "@/app/(app-screens)/builder/components/InputAndTextareaWithVariablesSupport";
 
 type ValueType =
   | "static"
@@ -157,32 +161,33 @@ function ValueEditor({
         <div className="space-y-2">
           <Label>Value</Label>
 
-          <Input
-            placeholder="Enter value"
+          <InputOrTextareaWithVariablesSupport
+            type="input"
             value={value.value ?? ""}
-            onChange={(e) =>
+            onValueChange={(nextValue) =>
               onChange({
                 ...value,
-                value: e.target.value,
+                value: nextValue,
               })
             }
+            placeholder="Enter value"
           />
         </div>
       )}
 
       {value.type === "variable" && (
         <div className="space-y-2">
-          <Label>Variable Name</Label>
+          <Label>Variable</Label>
 
-          <Input
-            placeholder="e.g. currentStatus"
+          <VariableSelector
             value={value.name ?? ""}
-            onChange={(e) =>
+            onValueChange={(name) =>
               onChange({
                 ...value,
-                name: e.target.value,
+                name,
               })
             }
+            placeholder="Select a variable..."
           />
         </div>
       )}
