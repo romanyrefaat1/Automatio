@@ -45,8 +45,21 @@ export function LoopNode({
       <Handle
         type="source"
         position={Position.Bottom}
-        id="output"
+        id="body"
+        style={{ left: "35%" }}
       />
+
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="done"
+        style={{ left: "65%" }}
+      />
+
+      <div className="flex justify-between px-5 pb-3 text-[10px] font-medium text-muted-foreground">
+        <span>BODY</span>
+        <span>DONE</span>
+      </div>
     </div>
   );
 }

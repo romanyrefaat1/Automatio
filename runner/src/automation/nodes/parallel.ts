@@ -272,9 +272,11 @@ async function runBranch(
           );
 
           if (!doneEdge) {
-            throw new Error(
-              `Loop ${currentNode.id} has no done edge`
+            console.log(
+              `Parallel loop ${currentNode.id} reached max iterations with no outgoing done edge.`
             );
+
+            return;
           }
 
           currentNodeId = doneEdge.target;
@@ -317,9 +319,11 @@ async function runBranch(
           );
 
           if (!doneEdge) {
-            throw new Error(
-              `Loop ${currentNode.id} has no done edge`
+            console.log(
+              `Parallel loop ${currentNode.id} condition is false with no outgoing done edge.`
             );
+
+            return;
           }
 
           currentNodeId = doneEdge.target;

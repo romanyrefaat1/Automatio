@@ -9,6 +9,7 @@ import { supabase } from "../supabase/supabase";
 import { config } from "dotenv";
 import { decryptSecret } from "./nodes/helper/telegram/telegram-security";
 import telegram from "./nodes/telegram";
+import { end } from "./nodes/end";
 
 function getNode(
   workflowArray: any[],
@@ -66,6 +67,15 @@ export default async function runner(
   const loopState =
     new Map<string, number>();
 
+  /*
+   * Stack of loop node IDs we are currently
+   * inside. When the body branch has no more
+   * outgoing edges, we jump back to the top
+   * of this stack (the nearest enclosing loop)
+   * instead of finishing the workflow.
+   */
+  const loopStack: string[] = [];
+
   const variables: WorkflowVariables =
     new Map();
 
@@ -98,6 +108,12 @@ export default async function runner(
     currentNodeId = outgoingEdges[0].target;
 
     continue;
+  }
+
+  if (currentNode.type === "end") {
+    console.log(`End node ${currentNode.id} reached. Workflow finished.`);
+    await end(browser);
+    break;
   }
 
     /*
@@ -168,6 +184,14 @@ export default async function runner(
           currentNode.id
         );
 
+        /*
+         * We're leaving this loop — remove it
+         * from the stack so body-end detection
+         * doesn't jump back into a finished loop.
+         */
+        const exitIdx = loopStack.lastIndexOf(currentNode.id);
+        if (exitIdx !== -1) loopStack.splice(exitIdx, 1);
+
         const doneEdge =
           getEdgeByHandle(
             workflowEdges,
@@ -176,9 +200,11 @@ export default async function runner(
           );
 
         if (!doneEdge) {
-          throw new Error(
-            `Loop ${currentNode.id} has no done edge`
+          console.log(
+            `Loop ${currentNode.id} reached max iterations with no outgoing done edge. Workflow finished.`
           );
+
+          break;
         }
 
         currentNodeId =
@@ -234,6 +260,14 @@ if (!conditionResponse.success) {
           currentNode.id
         );
 
+        /*
+         * We're leaving this loop — remove it
+         * from the stack so body-end detection
+         * doesn't jump back into a finished loop.
+         */
+        const exitIdx = loopStack.lastIndexOf(currentNode.id);
+        if (exitIdx !== -1) loopStack.splice(exitIdx, 1);
+
         const doneEdge =
           getEdgeByHandle(
             workflowEdges,
@@ -242,9 +276,11 @@ if (!conditionResponse.success) {
           );
 
         if (!doneEdge) {
-          throw new Error(
-            `Loop ${currentNode.id} has no done edge`
+          console.log(
+            `Loop ${currentNode.id} condition is false with no outgoing done edge. Workflow finished.`
           );
+
+          break;
         }
 
         currentNodeId =
@@ -285,6 +321,14 @@ if (!conditionResponse.success) {
           `Loop ${currentNode.id} has no body edge`
         );
       }
+
+      /*
+       * Push this loop node onto the stack so
+       * that when the body branch runs out of
+       * outgoing edges it returns here instead
+       * of finishing the workflow.
+       */
+      loopStack.push(currentNode.id);
 
       currentNodeId =
         bodyEdge.target;
@@ -461,6 +505,19 @@ console.log(
   );
 
   if (outgoingEdges.length === 0) {
+    if (loopStack.length > 0) {
+      const enclosingLoopId =
+        loopStack[loopStack.length - 1];
+
+      console.log(
+        `Telegram node ${currentNode.id} body end → returning to loop ${enclosingLoopId}`
+      );
+
+      currentNodeId = enclosingLoopId;
+
+      continue;
+    }
+
     console.log(
       `Telegram node ${currentNode.id} has no outgoing edges. Workflow finished.`
     );
@@ -549,6 +606,26 @@ console.log(
     if (
       outgoingEdges.length === 0
     ) {
+      /*
+       * If we're inside a loop body, jump back
+       * to the nearest enclosing loop node so it
+       * can re-evaluate its condition for the next
+       * iteration.  No backward wire needed on the
+       * canvas.
+       */
+      if (loopStack.length > 0) {
+        const enclosingLoopId =
+          loopStack[loopStack.length - 1];
+
+        console.log(
+          `Node ${currentNode.id} body end → returning to loop ${enclosingLoopId}`
+        );
+
+        currentNodeId = enclosingLoopId;
+
+        continue;
+      }
+
       console.log(
         `Node ${currentNode.id} has no outgoing edges. Workflow finished.`
       );

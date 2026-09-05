@@ -204,7 +204,7 @@ function getNodeSize(node: AutomationNode) {
  * condition branches lay out predictably instead of the two
  * outgoing edges swapping sides between layout runs.
  */
-const BRANCH_HANDLE_ORDER = ["true", "false"];
+const BRANCH_HANDLE_ORDER = ["true", "false", "body", "done"];
 
 /*
  * ----------------------------------------

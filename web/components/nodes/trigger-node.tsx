@@ -12,6 +12,7 @@ import {
 } from "./node-components";
 import { Button } from "../ui/button";
 import { useAutomationContext } from "@/app/(app-screens)/builder/contexts/AutomationContext";
+import { AnimatedButton } from "../ui/animated-button";
 
 export function TriggerNode({
   data,
@@ -70,7 +71,8 @@ const handleRun = async () => {
         position={Position.Bottom}
         id="output"
       />
-      <Button onClick={handleRun}>Run</Button>
+      {/* <Button onClick={handleRun}>Run</Button> */}
+      <AnimatedButton onClick={handleRun}>Run</AnimatedButton>
     </div>
   );
 }
