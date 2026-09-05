@@ -1,3 +1,4 @@
+/* web/components/nodes/index.tsx */
 "use client";
 
 import type { ReactNode } from "react";
@@ -25,7 +26,7 @@ import { CallChatGPTNode } from "./call-chatgpt-node";
 import { TelegramNode } from "./telegram-node";
 import { EndNode } from "./end-node";
 
-import type { AutomationNodeType } from "@/types/nodes";
+import type { AutomationNode, AutomationNodeData, AutomationNodeType } from "@/types/nodes";
 
 /* -------------------------------------------------------------------------- */
 /* Component exports                                                          */
@@ -61,7 +62,31 @@ export type AutomationNodeConfig = {
   title: string;
   description: string;
   component: ReactNode;
+  defaultData?: Partial<AutomationNodeData>;
 };
+
+function previewProps(
+  type: AutomationNodeType,
+  label: string,
+  description: string,
+  config: Record<string, unknown> = {}
+): NodeProps<AutomationNode> {
+  return {
+    id: `preview-${type}`,
+    type,
+    data: {
+      label,
+      description,
+      config,
+    },
+    selected: false,
+    zIndex: 0,
+    isConnectable: false,
+    positionAbsoluteX: 0,
+    positionAbsoluteY: 0,
+    dragging: false,
+  } as unknown as NodeProps<AutomationNode>;
+}
 
 export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
   trigger: {
@@ -69,9 +94,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Start automation",
     component: (
       <TriggerNode
-        data={{
-          label: "Trigger",
-        }}
+        {...previewProps("trigger", "Trigger", "Start automation", {
+          triggerType: "manual",
+        })}
       />
     ),
   },
@@ -81,9 +106,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Navigate browser",
     component: (
       <GotoNode
-        data={{
+        {...previewProps("goto", "Go to URL", "Navigate browser", {
           url: "https://example.com",
-        }}
+          waitUntil: "load",
+        })}
       />
     ),
   },
@@ -93,9 +119,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Click an element",
     component: (
       <ClickNode
-        data={{
+        {...previewProps("click", "Click", "Click an element", {
           selector: "#button",
-        }}
+          button: "left",
+        })}
       />
     ),
   },
@@ -105,10 +132,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Enter text",
     component: (
       <FillNode
-        data={{
+        {...previewProps("fill", "Fill", "Enter text", {
           selector: "#email",
           value: "user@example.com",
-        }}
+        })}
       />
     ),
   },
@@ -118,10 +145,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Select an option",
     component: (
       <SelectNode
-        data={{
+        {...previewProps("select", "Select", "Select an option", {
           selector: "#country",
-          option: "Egypt",
-        }}
+          value: "Egypt",
+        })}
       />
     ),
   },
@@ -131,9 +158,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Check checkbox",
     component: (
       <CheckNode
-        data={{
+        {...previewProps("check", "Check", "Check checkbox", {
           selector: "#terms",
-        }}
+        })}
       />
     ),
   },
@@ -143,9 +170,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Uncheck checkbox",
     component: (
       <UncheckNode
-        data={{
+        {...previewProps("uncheck", "Uncheck", "Uncheck checkbox", {
           selector: "#newsletter",
-        }}
+        })}
       />
     ),
   },
@@ -155,9 +182,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Press keyboard key",
     component: (
       <PressNode
-        data={{
+        {...previewProps("press", "Press Key", "Press keyboard key", {
           key: "Enter",
-        }}
+          selector: "body",
+        })}
       />
     ),
   },
@@ -167,9 +195,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Pause execution",
     component: (
       <WaitNode
-        data={{
-          duration: 1000,
-        }}
+        {...previewProps("wait", "Wait", "Pause execution", {
+          milliseconds: 1000,
+        })}
       />
     ),
   },
@@ -179,10 +207,11 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Wait until element exists",
     component: (
       <WaitForElementNode
-        data={{
+        {...previewProps("wait_for_element", "Wait for Element", "Wait until element exists", {
           selector: "#content",
-          duration: 5000,
-        }}
+          state: "visible",
+          timeout: 5000,
+        })}
       />
     ),
   },
@@ -192,9 +221,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Capture page",
     component: (
       <ScreenshotNode
-        data={{
-          value: "screenshot.png",
-        }}
+        {...previewProps("screenshot", "Screenshot", "Capture page", {
+          fullPage: false,
+        })}
       />
     ),
   },
@@ -204,10 +233,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Read text from element",
     component: (
       <ExtractTextNode
-        data={{
+        {...previewProps("extract_text", "Extract Text", "Read text from element", {
           selector: "h1",
-          variable: "pageTitle",
-        }}
+          save_as: "pageTitle",
+        })}
       />
     ),
   },
@@ -217,10 +246,11 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Verify text content",
     component: (
       <AssertNode
-        data={{
+        {...previewProps("assert_text", "Assert Text", "Verify text content", {
           selector: "h1",
           expected: "Welcome",
-        }}
+          match: "exact",
+        })}
       />
     ),
   },
@@ -230,9 +260,11 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Verify a value",
     component: (
       <AssertValueNode
-        data={{
-          label: "Assert Value",
-        }}
+        {...previewProps("assert_value", "Assert Value", "Verify a value", {
+          selector: "input#search",
+          expected: "query",
+          match: "exact",
+        })}
       />
     ),
   },
@@ -242,9 +274,11 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Branch workflow",
     component: (
       <ConditionNode
-        data={{
-          condition: "Element exists",
-        }}
+        {...previewProps("condition", "Condition", "Branch workflow", {
+          left: { type: "text", selector: "h1" },
+          operator: "contains",
+          right: { type: "static", value: "Dashboard" },
+        })}
       />
     ),
   },
@@ -254,9 +288,14 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Repeat workflow steps",
     component: (
       <LoopNode
-        data={{
-          label: "Loop",
-        }}
+        {...previewProps("loop", "Loop", "Repeat workflow steps", {
+          max_iterations: 5,
+          condition: {
+            left: { type: "variable", name: "counter" },
+            operator: "is",
+            right: { type: "static", value: "5" },
+          },
+        })}
       />
     ),
   },
@@ -266,9 +305,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Run branches concurrently",
     component: (
       <ParallelNode
-        data={{
-          label: "Parallel",
-        }}
+        {...previewProps("parallel", "Parallel", "Run branches concurrently", {
+          merge_variables: true,
+        })}
       />
     ),
   },
@@ -278,9 +317,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Make an HTTP request",
     component: (
       <CallApiNode
-        data={{
-          label: "Call API",
-        }}
+        {...previewProps("call_api", "Call API", "Make an HTTP request", {
+          method: "GET",
+          url: "https://api.example.com/data",
+        })}
       />
     ),
   },
@@ -290,9 +330,10 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Run an AI request",
     component: (
       <CallChatGPTNode
-        data={{
-          label: "Call ChatGPT",
-        }}
+        {...previewProps("call_chatgpt", "Call ChatGPT", "Run an AI request", {
+          query: "Summarize this page content",
+          save_as: "summary",
+        })}
       />
     ),
   },
@@ -302,9 +343,9 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Send Telegram message",
     component: (
       <TelegramNode
-        data={{
-          label: "Telegram",
-        }}
+        {...previewProps("telegram", "Telegram", "Send Telegram message", {
+          message: "Automation completed successfully.",
+        })}
       />
     ),
   },
@@ -314,9 +355,7 @@ export const nodes: Record<AutomationNodeType, AutomationNodeConfig> = {
     description: "Finish automation",
     component: (
       <EndNode
-        data={{
-          label: "End",
-        }}
+        {...previewProps("end", "End", "Finish automation", {})}
       />
     ),
   },

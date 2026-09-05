@@ -35,6 +35,7 @@ import { createClient } from "@/lib/supabase/client";
 
 import { useAutomationContext } from "../contexts/AutomationContext";
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 type AutomationRun = Tables<"automation_runs">;
 type AutomationStatus = Tables<"automations">["status"];
@@ -65,13 +66,9 @@ const STATUS_META: Record<
 function timeAgo(iso: string | null) {
   if (!iso) return null;
 
-  const diffMs =
-    Date.now() -
-    new Date(iso).getTime();
+  const diffMs = Date.now() - new Date(iso).getTime();
 
-  const minutes = Math.round(
-    diffMs / 60000
-  );
+  const minutes = Math.round(diffMs / 60000);
 
   if (minutes < 1) {
     return "just now";
@@ -81,17 +78,13 @@ function timeAgo(iso: string | null) {
     return `${minutes}m ago`;
   }
 
-  const hours = Math.round(
-    minutes / 60
-  );
+  const hours = Math.round(minutes / 60);
 
   if (hours < 24) {
     return `${hours}h ago`;
   }
 
-  const days = Math.round(
-    hours / 24
-  );
+  const days = Math.round(hours / 24);
 
   return `${days}d ago`;
 }
@@ -100,24 +93,19 @@ function timeUntil(iso: string | null) {
   if (!iso) return null;
 
   const diffMs =
-    new Date(iso).getTime() -
-    Date.now();
+    new Date(iso).getTime() - Date.now();
 
   if (diffMs <= 0) {
     return "any moment";
   }
 
-  const minutes = Math.round(
-    diffMs / 60000
-  );
+  const minutes = Math.round(diffMs / 60000);
 
   if (minutes < 60) {
     return `in ${minutes}m`;
   }
 
-  const hours = Math.round(
-    minutes / 60
-  );
+  const hours = Math.round(minutes / 60);
 
   return `in ${hours}h`;
 }
@@ -131,46 +119,36 @@ const RUN_STATUS_META: Record<
 > = {
   queued: {
     label: "Queued",
-    className:
-      "text-muted-foreground",
+    className: "text-muted-foreground",
   },
 
   running: {
     label: "Running",
-    className:
-      "text-[hsl(var(--info-fg))]",
+    className: "text-[hsl(var(--info-fg))]",
   },
 
   completed: {
     label: "Completed",
-    className:
-      "text-[hsl(var(--success-fg))]",
+    className: "text-[hsl(var(--success-fg))]",
   },
 
   failed: {
     label: "Failed",
-    className:
-      "text-[hsl(var(--destructive-fg))]",
+    className: "text-[hsl(var(--destructive-fg))]",
   },
 
   cancelled: {
     label: "Cancelled",
-    className:
-      "text-muted-foreground",
+    className: "text-muted-foreground",
   },
 };
 
 function isMac() {
-  if (
-    typeof navigator ===
-    "undefined"
-  ) {
+  if (typeof navigator === "undefined") {
     return false;
   }
 
-  return navigator.platform
-    .toLowerCase()
-    .includes("mac");
+  return navigator.platform.toLowerCase().includes("mac");
 }
 
 export default function AutomationTopInfo() {
@@ -188,39 +166,26 @@ export default function AutomationTopInfo() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [open, setOpen] =
-    useState(false);
+  const [open, setOpen] = useState(false);
 
   const [
     isEditingName,
     setIsEditingName,
   ] = useState(false);
 
-  const [draftName, setDraftName] =
-    useState(
-      automation?.name ?? ""
-    );
+  const [draftName, setDraftName] = useState(
+    automation?.name ?? ""
+  );
 
   const [lastRun, setLastRun] =
-    useState<AutomationRun | null>(
-      null
-    );
+    useState<AutomationRun | null>(null);
 
-  /*
-   * Keep draft name in sync when
-   * automation is loaded/refetched.
-   */
   useEffect(() => {
     if (automation) {
-      setDraftName(
-        automation.name
-      );
+      setDraftName(automation.name);
     }
   }, [automation?.name]);
 
-  /*
-   * Fetch latest run.
-   */
   useEffect(() => {
     if (!automation) return;
 
@@ -229,10 +194,7 @@ export default function AutomationTopInfo() {
     supabase
       .from("automation_runs")
       .select("*")
-      .eq(
-        "automation_id",
-        automation.id
-      )
+      .eq("automation_id", automation.id)
       .order("created_at", {
         ascending: false,
       })
@@ -254,9 +216,7 @@ export default function AutomationTopInfo() {
   }
 
   const statusMeta =
-    STATUS_META[
-      automation.status
-    ];
+    STATUS_META[automation.status];
 
   const activeSchedule =
     schedules.find(
@@ -265,15 +225,8 @@ export default function AutomationTopInfo() {
 
   const mac = isMac();
 
-  /*
-   * ----------------------------------------
-   * Rename
-   * ----------------------------------------
-   */
-
   async function commitName() {
-    const trimmed =
-      draftName.trim();
+    const trimmed = draftName.trim();
 
     setIsEditingName(false);
 
@@ -281,28 +234,19 @@ export default function AutomationTopInfo() {
       !trimmed ||
       trimmed === automation.name
     ) {
-      setDraftName(
-        automation.name
-      );
-
+      setDraftName(automation.name);
       return;
     }
 
-    const { error } =
-      await supabase
-        .from("automations")
-        .update({
-          name: trimmed,
-        })
-        .eq(
-          "id",
-          automation.id
-        );
+    const { error } = await supabase
+      .from("automations")
+      .update({
+        name: trimmed,
+      })
+      .eq("id", automation.id);
 
     if (error) {
-      setDraftName(
-        automation.name
-      );
+      setDraftName(automation.name);
 
       console.error(
         "Failed to rename automation:",
@@ -315,25 +259,15 @@ export default function AutomationTopInfo() {
     await refetch();
   }
 
-  /*
-   * ----------------------------------------
-   * Status
-   * ----------------------------------------
-   */
-
   async function updateStatus(
     status: AutomationStatus
   ) {
-    const { error } =
-      await supabase
-        .from("automations")
-        .update({
-          status,
-        })
-        .eq(
-          "id",
-          automation.id
-        );
+    const { error } = await supabase
+      .from("automations")
+      .update({
+        status,
+      })
+      .eq("id", automation.id);
 
     if (error) {
       console.error(
@@ -347,16 +281,7 @@ export default function AutomationTopInfo() {
     await refetch();
   }
 
-  /*
-   * ----------------------------------------
-   * Duplicate
-   * ----------------------------------------
-   */
-
   async function handleDuplicate() {
-    /*
-     * Create the new automation.
-     */
     const {
       data: newAutomation,
       error,
@@ -364,11 +289,9 @@ export default function AutomationTopInfo() {
       .from("automations")
       .insert({
         name: `${automation.name} (copy)`,
-        description:
-          automation.description,
+        description: automation.description,
         status: "paused",
-        user_id:
-          automation.user_id,
+        user_id: automation.user_id,
       })
       .select()
       .single();
@@ -385,56 +308,35 @@ export default function AutomationTopInfo() {
       return;
     }
 
-    /*
-     * Map old node IDs to new
-     * step IDs.
-     *
-     * Edges reference step IDs,
-     * so they must be translated.
-     */
-    const nodeIdMap = new Map<
-      string,
-      string
-    >();
+    const nodeIdMap = new Map<string, string>();
 
-    /*
-     * Duplicate nodes as
-     * automation steps.
-     */
     if (nodes.length > 0) {
-      const stepsToInsert =
-        nodes.map(
-          (node, index) => {
-            const newId =
-              crypto.randomUUID();
+      const stepsToInsert = nodes.map(
+        (node, index) => {
+          const newId = crypto.randomUUID();
 
-            nodeIdMap.set(
-              node.id,
-              newId
-            );
+          nodeIdMap.set(
+            node.id,
+            newId
+          );
 
-            return {
-              id: newId,
-              automation_id:
-                newAutomation.id,
-              title:
-                node.data.title,
-              type: node.type,
-              config:
-                node.data.config ??
-                {},
-              position: index,
-            };
-          }
-        );
+          return {
+            id: newId,
+            automation_id:
+              newAutomation.id,
+            title: node.data.title,
+            type: node.type,
+            config: node.data.config ?? {},
+            position: index,
+          };
+        }
+      );
 
       const {
         error: stepsError,
       } = await supabase
         .from("automation_steps")
-        .insert(
-          stepsToInsert
-        );
+        .insert(stepsToInsert);
 
       if (stepsError) {
         console.error(
@@ -446,76 +348,52 @@ export default function AutomationTopInfo() {
       }
     }
 
-    /*
-     * Duplicate edges.
-     *
-     * Translate the old source
-     * and target node IDs into
-     * the new step IDs.
-     *
-     * Preserve the edge type.
-     */
     if (edges.length > 0) {
-      const edgesToInsert =
-        edges
-          .map((edge) => {
-            const sourceStepId =
-              nodeIdMap.get(
-                edge.source
-              );
+      const edgesToInsert = edges
+        .map((edge) => {
+          const sourceStepId =
+            nodeIdMap.get(edge.source);
 
-            const targetStepId =
-              nodeIdMap.get(
-                edge.target
-              );
+          const targetStepId =
+            nodeIdMap.get(edge.target);
 
-            if (
-              !sourceStepId ||
-              !targetStepId
-            ) {
-              return null;
-            }
+          if (
+            !sourceStepId ||
+            !targetStepId
+          ) {
+            return null;
+          }
 
-            return {
-              id: crypto.randomUUID(),
+          return {
+            id: crypto.randomUUID(),
+            automation_id:
+              newAutomation.id,
+            source_step_id:
+              sourceStepId,
+            target_step_id:
+              targetStepId,
+            type:
+              edge.type ?? "smoothstep",
+          };
+        })
+        .filter(
+          (
+            edge
+          ): edge is {
+            id: string;
+            automation_id: string;
+            source_step_id: string;
+            target_step_id: string;
+            type: string;
+          } => edge !== null
+        );
 
-              automation_id:
-                newAutomation.id,
-
-              source_step_id:
-                sourceStepId,
-
-              target_step_id:
-                targetStepId,
-
-              type:
-                edge.type ??
-                "smoothstep",
-            };
-          })
-          .filter(
-            (
-              edge
-            ): edge is {
-              id: string;
-              automation_id: string;
-              source_step_id: string;
-              target_step_id: string;
-              type: string;
-            } =>
-              edge !== null
-          );
-
-      if (
-        edgesToInsert.length > 0
-      ) {
+      if (edgesToInsert.length > 0) {
         const {
           error: edgesError,
         } = await supabase
           .from("automation_edges")
-          .insert(
-            edgesToInsert
-          );
+          .insert(edgesToInsert);
 
         if (edgesError) {
           console.error(
@@ -533,30 +411,19 @@ export default function AutomationTopInfo() {
     );
   }
 
-  /*
-   * ----------------------------------------
-   * Delete
-   * ----------------------------------------
-   */
-
   async function handleDelete() {
-    const confirmed =
-      window.confirm(
-        `Delete "${automation.name}"? This can't be undone.`
-      );
+    const confirmed = window.confirm(
+      `Delete "${automation.name}"? This can't be undone.`
+    );
 
     if (!confirmed) {
       return;
     }
 
-    const { error } =
-      await supabase
-        .from("automations")
-        .delete()
-        .eq(
-          "id",
-          automation.id
-        );
+    const { error } = await supabase
+      .from("automations")
+      .delete()
+      .eq("id", automation.id);
 
     if (error) {
       console.error(
@@ -567,9 +434,7 @@ export default function AutomationTopInfo() {
       return;
     }
 
-    router.push(
-      "/automations"
-    );
+    router.push("/automations");
   }
 
   return (
@@ -602,86 +467,84 @@ export default function AutomationTopInfo() {
           align="start"
           className="w-80 p-0"
         >
-          <div className="space-y-3 p-4">
-            {/* Name */}
-            {isEditingName ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  autoFocus
-                  value={draftName}
-                  onChange={(event) =>
-                    setDraftName(
-                      event.target
-                        .value
-                    )
-                  }
-                  onKeyDown={(
-                    event
-                  ) => {
-                    if (
-                      event.key ===
-                      "Enter"
-                    ) {
-                      void commitName();
+          <div className="relative space-y-3 p-4">
+            {/* Header */}
+            <div className="flex items-start gap-3 pr-8">
+              <div className="min-w-0 flex-1">
+                {isEditingName ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      autoFocus
+                      value={draftName}
+                      onChange={(event) =>
+                        setDraftName(
+                          event.target.value
+                        )
+                      }
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter"
+                        ) {
+                          void commitName();
+                        }
+
+                        if (
+                          event.key === "Escape"
+                        ) {
+                          setDraftName(
+                            automation.name
+                          );
+
+                          setIsEditingName(
+                            false
+                          );
+                        }
+                      }}
+                      className="h-8"
+                    />
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() =>
+                        void commitName()
+                      }
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() =>
+                      setIsEditingName(true)
                     }
+                    className="group flex w-full items-center gap-2 text-left"
+                  >
+                    <h3 className="truncate">
+                      {automation.name}
+                    </h3>
 
-                    if (
-                      event.key ===
-                      "Escape"
-                    ) {
-                      setDraftName(
-                        automation.name
-                      );
-
-                      setIsEditingName(
-                        false
-                      );
-                    }
-                  }}
-                  className="h-8"
-                />
-
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8 shrink-0"
-                  onClick={() =>
-                    void commitName()
-                  }
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
+                    <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </button>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() =>
-                  setIsEditingName(
-                    true
-                  )
-                }
-                className="group flex w-full items-center justify-between gap-2 text-left"
-              >
-                <h3 className="truncate">
-                  {automation.name}
-                </h3>
 
-                <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </button>
-            )}
+              {/* Theme switcher */}
+              <div className="absolute right-2 top-2">
+                <ThemeSwitcher />
+              </div>
+            </div>
 
             {automation.description && (
               <p className="text-muted-foreground">
-                {
-                  automation.description
-                }
+                {automation.description}
               </p>
             )}
 
             {/* Status */}
             <DropdownMenu>
-              <DropdownMenuTrigger
-                asChild
-              >
+              <DropdownMenuTrigger asChild>
                 <Button
                   variant="secondary"
                   size="sm"
@@ -694,9 +557,7 @@ export default function AutomationTopInfo() {
                     )}
                   />
 
-                  {
-                    statusMeta.label
-                  }
+                  {statusMeta.label}
 
                   <ChevronDown className="h-3 w-3 opacity-60" />
                 </Button>
@@ -707,35 +568,28 @@ export default function AutomationTopInfo() {
                   Object.keys(
                     STATUS_META
                   ) as AutomationStatus[]
-                ).map(
-                  (status) => (
-                    <DropdownMenuItem
-                      key={status}
-                      onClick={() =>
-                        void updateStatus(
-                          status
-                        )
-                      }
-                      className="gap-2"
-                    >
-                      <span
-                        className={cn(
-                          "h-1.5 w-1.5 rounded-full",
-                          STATUS_META[
-                            status
-                          ]
-                            .dotClassName
-                        )}
-                      />
+                ).map((status) => (
+                  <DropdownMenuItem
+                    key={status}
+                    onClick={() =>
+                      void updateStatus(status)
+                    }
+                    className="gap-2"
+                  >
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        STATUS_META[status]
+                          .dotClassName
+                      )}
+                    />
 
-                      {
-                        STATUS_META[
-                          status
-                        ].label
-                      }
-                    </DropdownMenuItem>
-                  )
-                )}
+                    {
+                      STATUS_META[status]
+                        .label
+                    }
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -753,15 +607,13 @@ export default function AutomationTopInfo() {
                   <span
                     className={
                       RUN_STATUS_META[
-                        lastRun
-                          .status
+                        lastRun.status
                       ].className
                     }
                   >
                     {
                       RUN_STATUS_META[
-                        lastRun
-                          .status
+                        lastRun.status
                       ].label
                     }
 
@@ -855,9 +707,7 @@ export default function AutomationTopInfo() {
       >
         <Keyboard className="h-3.5 w-3.5" />
 
-        <span>
-          Shortcuts
-        </span>
+        <span>Shortcuts</span>
 
         <kbd className="rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
           {mac ? "⌘" : "Ctrl"} + /

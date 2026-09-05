@@ -12,7 +12,7 @@ export default function RightPanel() {
     <div className="h-full w-full overflow-hidden rounded-xl bg-secondary p-4">
       <Tabs
         defaultValue="new-node"
-        className="flex h-full w-full flex-col"
+        className="flex h-full min-h-0 w-full flex-col"
       >
         <TabsList className="w-full shrink-0">
           <TabsTrigger value="new-node" className="flex-1">
@@ -22,18 +22,10 @@ export default function RightPanel() {
 
         <TabsContent
           value="new-node"
-          className="min-h-0 flex- overflow-auto"
+          className="min-h-0 flex-1 overflow-hidden"
         >
-            {/* Sub tabs */}
-            <NewNodes />   
+          <NewNodes />
         </TabsContent>
-{/* 
-        <TabsContent
-          value="password"
-          className="min-h-0 flex-1 overflow-auto"
-        >
-          Change your password here.
-        </TabsContent> */}
       </Tabs>
     </div>
   );
