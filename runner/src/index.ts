@@ -3,6 +3,7 @@ import "dotenv/config";
 import { createServer } from "node:http";
 
 import { automationIndex } from "./automation";
+import { runChatGPTAgent } from "./chatgpt/agent";
 
 const RUNNER_SECRET = process.env.RUNNER_SECRET;
 
@@ -17,13 +18,107 @@ function sendJson(
 ) {
   res.writeHead(status, {
     "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization",
   });
 
   res.end(JSON.stringify(body));
 }
 
+async function readBody(
+  req: import("node:http").IncomingMessage
+) {
+  let body = "";
+
+  for await (const chunk of req) {
+    body += chunk;
+  }
+
+  return JSON.parse(body);
+}
+
 const server = createServer(async (req, res) => {
-  if (req.method === "POST" && req.url === "/workflow") {
+  if (req.method === "OPTIONS") {
+    sendJson(res, 204, null);
+    return;
+  }
+
+  if (req.method === "POST" && req.url === "/agent") {
+    try {
+      const body = await readBody(req);
+
+      const prompt = body?.prompt;
+      const url = body?.url;
+      const enableFetchPage =
+        body?.fetchPage !== false;
+
+      if (
+        typeof prompt !== "string" ||
+        !prompt.trim()
+      ) {
+        sendJson(res, 400, {
+          success: false,
+          error: "prompt is required",
+        });
+
+        return;
+      }
+
+      if (
+        url !== undefined &&
+        typeof url !== "string"
+      ) {
+        sendJson(res, 400, {
+          success: false,
+          error: "url must be a string",
+        });
+
+        return;
+      }
+
+      console.log(
+        `ChatGPT agent request: ${prompt}`
+      );
+
+      const response = await runChatGPTAgent(
+        prompt,
+        {
+          url,
+          enableFetchPage,
+          maxRounds: 6,
+        }
+      );
+
+      sendJson(res, 200, {
+        success: true,
+        response,
+      });
+
+      return;
+    } catch (error) {
+      console.error(
+        "ChatGPT agent failed:",
+        error
+      );
+
+      sendJson(res, 500, {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "ChatGPT agent failed",
+      });
+
+      return;
+    }
+  }
+
+  if (
+    req.method === "POST" &&
+    req.url === "/workflow"
+  ) {
     try {
       const authHeader = req.headers.authorization;
 
@@ -39,13 +134,7 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      let body = "";
-
-      for await (const chunk of req) {
-        body += chunk;
-      }
-
-      const parsedBody = JSON.parse(body);
+      const parsedBody = await readBody(req);
 
       const {
         automationId,
@@ -80,12 +169,6 @@ const server = createServer(async (req, res) => {
         `Received automation ${automationId}, run ${runId}`
       );
 
-      /*
-       * IMPORTANT:
-       * Start the automation without waiting for it.
-       *
-       * This lets Supabase receive a fast HTTP response.
-       */
       void automationIndex(
         automationId,
         runId
@@ -135,5 +218,7 @@ const server = createServer(async (req, res) => {
 const port = Number(process.env.PORT) || 3000;
 
 server.listen(port, "0.0.0.0", () => {
-  console.log(`Runner listening on port ${port}`);
+  console.log(
+    `Runner listening on port ${port}`
+  );
 });

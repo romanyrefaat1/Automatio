@@ -164,7 +164,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
         <SidebarMenu>
           <SidebarMenuItem className="flex gap-2 items-center justify-start">
-            <ThemeSwitcher /> <span className="text-sm">Theme switcher</span>
+            <ThemeSwitcher /> {!isCollapsed && <span className="text-sm">Theme switcher</span>}
           </SidebarMenuItem>
 
           <SidebarMenuItem>

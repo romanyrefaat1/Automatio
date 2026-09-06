@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/tabs";
 
 import NewNodes from "./NewNodes";
+import { AgentTab } from "./chatbot/AgentTab";
 
 export default function RightPanel() {
   return (
@@ -18,6 +19,9 @@ export default function RightPanel() {
           <TabsTrigger value="new-node" className="flex-1">
             Nodes
           </TabsTrigger>
+          <TabsTrigger value="agent" className="flex-1">
+            AI Agent
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent
@@ -25,6 +29,12 @@ export default function RightPanel() {
           className="min-h-0 flex-1 overflow-hidden"
         >
           <NewNodes />
+        </TabsContent>
+        <TabsContent
+          value="agent"
+          className="min-h-0 flex-1 overflow-hidden"
+        >
+          <AgentTab />
         </TabsContent>
       </Tabs>
     </div>
