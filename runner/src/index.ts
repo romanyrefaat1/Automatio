@@ -91,9 +91,22 @@ const server = createServer(async (req, res) => {
         }
       );
 
+      /*
+       * IMPORTANT:
+       *
+       * The frontend expects `answer`, `fetchUrls`, and `result`
+       * as TOP-LEVEL fields on the JSON body (see AgentApiResponse
+       * in AgentTab.tsx). Do not nest the agent's reply under a
+       * `response` key here — that mismatch was previously causing
+       * the frontend to read `data.answer` as undefined and fall
+       * back to an empty string, so the agent's answer silently
+       * never rendered even though the backend succeeded.
+       */
       sendJson(res, 200, {
         success: true,
-        response,
+        answer: response.answer,
+        fetchUrls: response.fetchUrls,
+        result: response.result,
       });
 
       return;
