@@ -9,23 +9,30 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import { useEffect, useState } from "react";
+
 import RightPanel from "./RightPanel";
+
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
+
 import AutomationTopInfo from "./AutomationTopInfo";
 import CanvasSurviveButtons from "./CanvasSurviveButtons";
+
 import { nodeTypes } from "@/types/nodes";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
-import { useState } from "react";
 
 export default function AutomationCanvas() {
   const {
     nodes,
     edges,
+    loading,
+    error,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -41,6 +48,15 @@ export default function AutomationCanvas() {
     };
   } | null>(null);
 
+  // Defer the resizable layout's first render by one tick so
+  // react-resizable-panels measures a fully-sized parent instead
+  // of a 0-width flash on initial mount.
+  const [layoutReady, setLayoutReady] = useState(false);
+
+  useEffect(() => {
+    setLayoutReady(true);
+  }, []);
+
   const onNodeContextMenu: NodeMouseHandler = (event, node) => {
     event.preventDefault();
 
@@ -53,67 +69,96 @@ export default function AutomationCanvas() {
     });
   };
 
+  if (error) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background p-6">
+        <div className="w-full max-w-md rounded-lg border bg-card p-6">
+          <h2 className="text-lg font-semibold">
+            Failed to load automation
+          </h2>
+
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-full min-w-0">
-      <ResizablePanelGroup
-        direction="horizontal"
-        className="h-full w-full"
-        autoSaveId="automation-builder-layout"
-      >
-        {/* CANVAS */}
-        <ResizablePanel
-          id="canvas"
-          defaultSize={70}
-          minSize={30}
+      {layoutReady && (
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="h-full w-full"
+          autoSaveId="automation-builder-layout-v2"
         >
-          <div className="h-full w-full">
-            <ReactFlow
-              nodes={nodes}
-              edges={edges}
-              nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onEdgeClick={onEdgeClick}
-              onNodeContextMenu={onNodeContextMenu}
-              onPaneClick={() => setMenuState(null)}
-              fitView
-            >
-              <Background />
-              <Controls />
+          <ResizablePanel
+            id="canvas"
+            defaultSize={70}
+            minSize={30}
+            className="min-w-0"
+          >
+            <div className="relative h-full w-full overflow-hidden">
+              <div
+                className={
+                  loading
+                    ? "h-full w-full animate-pulse"
+                    : "h-full w-full"
+                }
+              >
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  nodeTypes={nodeTypes}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onEdgeClick={onEdgeClick}
+                  onNodeContextMenu={onNodeContextMenu}
+                  onPaneClick={() => setMenuState(null)}
+                  fitView={!loading}
+                >
+                  <Background />
+                  <Controls />
 
-              <Panel position="top-left">
-                <AutomationTopInfo />
-              </Panel>
+                  <Panel position="top-left">
+                    <AutomationTopInfo />
+                  </Panel>
 
-              <Panel position="top-right">
-                <CanvasSurviveButtons />
-              </Panel>
-            </ReactFlow>
+                  <Panel position="top-right">
+                    <CanvasSurviveButtons />
+                  </Panel>
+                </ReactFlow>
 
-            <NodeContextMenu
-              nodeId={menuState?.nodeId ?? null}
-              position={menuState?.position ?? null}
-              onClose={() => setMenuState(null)}
-              onDelete={removeNode}
-            />
-          </div>
-        </ResizablePanel>
+                <NodeContextMenu
+                  nodeId={menuState?.nodeId ?? null}
+                  position={menuState?.position ?? null}
+                  onClose={() => setMenuState(null)}
+                  onDelete={removeNode}
+                />
+              </div>
 
-        {/* HANDLE */}
-        <ResizableHandle withHandle />
+              {loading && (
+                <div className="pointer-events-none absolute inset-0 z-50 bg-background/20" />
+              )}
+            </div>
+          </ResizablePanel>
 
-        {/* RIGHT PANEL */}
-        <ResizablePanel
-          id="rightPanel"
-          defaultSize={30}
-          minSize={20}
-        >
-          <div className="h-full w-full overflow-hidden">
-            <RightPanel />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          <ResizableHandle withHandle />
+
+          <ResizablePanel
+            id="rightPanel"
+            defaultSize={30}
+            minSize={20}
+            className="min-w-0"
+          >
+            <div className="h-full w-full overflow-hidden">
+              <RightPanel />
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      )}
     </div>
   );
 }

@@ -80,6 +80,12 @@ type AutomationNodesContextType = {
   nodes: AutomationNode[];
   edges: Edge<AutomationEdgeType>[];
 
+  loading: boolean;
+  error: string | null;
+
+  isSaving: boolean;
+  isAutoLayouting: boolean;
+
   onNodesChange: (
     changes: NodeChange<AutomationNode>[]
   ) => void;
@@ -115,7 +121,6 @@ type AutomationNodesContextType = {
   canRedo: boolean;
 
   isDirty: boolean;
-  isSaving: boolean;
 
   save: () => Promise<void>;
 };
@@ -148,16 +153,17 @@ const DEFAULT_NODE_WIDTH = 220;
 const DEFAULT_NODE_HEIGHT = 90;
 
 /*
- * Nodes with branching output (condition) or a distinct visual
- * footprint get a size hint even before React Flow has ever
- * measured them, so the very first auto-layout (before any
- * render pass) doesn't squash everything into one flat box.
- * This is only a fallback — `node.measured` (real DOM size)
- * always wins once it's available.
+ * ----------------------------------------
+ * Node size hints
+ * ----------------------------------------
  */
+
 const NODE_SIZE_HINTS: Record<
   string,
-  { width: number; height: number }
+  {
+    width: number;
+    height: number;
+  }
 > = {
   condition: {
     width: 260,
@@ -180,8 +186,11 @@ const NODE_SIZE_HINTS: Record<
   },
 };
 
-function getNodeSize(node: AutomationNode) {
-  const hint = NODE_SIZE_HINTS[node.type ?? ""];
+function getNodeSize(
+  node: AutomationNode
+) {
+  const hint =
+    NODE_SIZE_HINTS[node.type ?? ""];
 
   return {
     width:
@@ -199,12 +208,17 @@ function getNodeSize(node: AutomationNode) {
 }
 
 /*
- * Ordered port sides for branching nodes. Keeping this order
- * consistent (true before false, always) is what makes
- * condition branches lay out predictably instead of the two
- * outgoing edges swapping sides between layout runs.
+ * ----------------------------------------
+ * Branch handle order
+ * ----------------------------------------
  */
-const BRANCH_HANDLE_ORDER = ["true", "false", "body", "done"];
+
+const BRANCH_HANDLE_ORDER = [
+  "true",
+  "false",
+  "body",
+  "done",
+];
 
 /*
  * ----------------------------------------
@@ -254,8 +268,11 @@ export function AutomationNodesProvider({
 
   /*
    * ----------------------------------------
-   * Loading / saving
+   * Async state
    * ----------------------------------------
+   *
+   * Each async operation has its own loading
+   * state and error state.
    */
 
   const [loading, setLoading] =
@@ -264,8 +281,29 @@ export function AutomationNodesProvider({
   const [isSaving, setIsSaving] =
     useState(false);
 
-  const [error, setError] =
+  const [isAutoLayouting, setIsAutoLayouting] =
+    useState(false);
+
+  const [loadError, setLoadError] =
     useState<string | null>(null);
+
+  const [saveError, setSaveError] =
+    useState<string | null>(null);
+
+  const [layoutError, setLayoutError] =
+    useState<string | null>(null);
+
+  /*
+   * Public error.
+   *
+   * Loading errors have the highest priority,
+   * followed by save and layout errors.
+   */
+
+  const error =
+    loadError ??
+    saveError ??
+    layoutError;
 
   /*
    * ----------------------------------------
@@ -322,6 +360,7 @@ export function AutomationNodesProvider({
               ...currentHistory.past,
               previousState,
             ],
+
             future: [],
           })
         );
@@ -404,6 +443,7 @@ export function AutomationNodesProvider({
     ) => {
       /*
        * Ctrl/Cmd + click
+       *
        * Delete edge.
        */
 
@@ -431,11 +471,8 @@ export function AutomationNodesProvider({
 
       /*
        * Alt/Option + click
-       * Cycle edge type.
        *
-       * smoothstep -> straight
-       * straight   -> step
-       * step       -> smoothstep
+       * Cycle edge type.
        */
 
       if (event.altKey) {
@@ -479,8 +516,6 @@ export function AutomationNodesProvider({
             };
           }
         );
-
-        return;
       }
     },
     [updateGraph]
@@ -493,19 +528,12 @@ export function AutomationNodesProvider({
    *
    * IMPORTANT:
    *
-   * React Flow's Connection contains:
+   * sourceHandle MUST be preserved.
    *
-   * source
-   * target
-   * sourceHandle
-   * targetHandle
+   * Condition nodes use:
    *
-   * For condition nodes:
-   *
-   * sourceHandle = "true"
-   * sourceHandle = "false"
-   *
-   * We MUST preserve that value.
+   * true
+   * false
    */
 
   const onConnect = useCallback(
@@ -527,28 +555,8 @@ export function AutomationNodesProvider({
 
               id: crypto.randomUUID(),
 
-              /*
-               * New edges default to
-               * smoothstep.
-               */
-
               type: "smoothstep",
 
-              /*
-               * IMPORTANT:
-               *
-               * Do NOT remove sourceHandle.
-               *
-               * If the connection came from
-               * the condition's "true" handle,
-               * this will be:
-               *
-               * sourceHandle: "true"
-               *
-               * If it came from "false":
-               *
-               * sourceHandle: "false"
-               */
               sourceHandle:
                 connection.sourceHandle ??
                 undefined,
@@ -631,44 +639,23 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Auto layout
    * ----------------------------------------
-   *
-   * Runs the full graph through ELK's layered algorithm.
-   *
-   * Improvements over a plain "dump every node/edge into ELK"
-   * approach:
-   *
-   * 1. Branching nodes (condition, and anything else that uses
-   *    named source handles like "true"/"false") get FIXED_ORDER
-   *    ports, with branch handles always listed in the same
-   *    order. Without this, ELK is free to route the "true" and
-   *    "false" edges out of either side of the node, so which
-   *    branch appears on the left vs right can flip between
-   *    layout runs even though nothing about the graph changed.
-   *
-   * 2. Disconnected nodes/subgraphs get real separation instead
-   *    of ELK's default handling, which can place them
-   *    overlapping other parts of the graph.
-   *
-   * 3. Node sizing prefers real measured dimensions, and only
-   *    falls back to a type-aware size hint (see
-   *    NODE_SIZE_HINTS) rather than one flat box for every node
-   *    type — so the very first layout (before anything has
-   *    rendered) still looks proportionate.
    */
 
   const autoLayout = useCallback(
     async () => {
-      if (nodes.length === 0) {
+      if (
+        nodes.length === 0 ||
+        isAutoLayouting
+      ) {
         return;
       }
 
+      setIsAutoLayouting(true);
+      setLayoutError(null);
+
       try {
         /*
-         * Group outgoing edges per source node so we can hand
-         * ELK a stable, ordered list of ports for any node that
-         * has more than one outgoing edge. Single-output nodes
-         * don't need explicit ports — ELK handles those fine on
-         * its own.
+         * Group outgoing edges by source.
          */
 
         const outgoingBySource = new Map<
@@ -678,8 +665,9 @@ export function AutomationNodesProvider({
 
         for (const edge of edges) {
           const existing =
-            outgoingBySource.get(edge.source) ??
-            [];
+            outgoingBySource.get(
+              edge.source
+            ) ?? [];
 
           existing.push(edge);
 
@@ -690,11 +678,7 @@ export function AutomationNodesProvider({
         }
 
         /*
-         * For a branching node, sort its outgoing edges so
-         * "true" always comes before "false" (and anything
-         * without a recognized handle falls after both, in a
-         * stable order). This is what keeps the branch layout
-         * consistent across runs.
+         * Sort outgoing edges by branch handle.
          */
 
         const sortedOutgoing = (
@@ -732,27 +716,26 @@ export function AutomationNodesProvider({
           );
         };
 
+        /*
+         * Build ELK children.
+         */
+
         const children = nodes.map(
           (node) => {
-            const size = getNodeSize(node);
-            const outgoing = sortedOutgoing(
-              node.id
-            );
+            const size =
+              getNodeSize(node);
 
-            /*
-             * Only nodes with more than one
-             * outgoing edge need explicit
-             * ports — this keeps the ELK
-             * graph minimal for the common
-             * single-output case.
-             */
+            const outgoing =
+              sortedOutgoing(node.id);
 
             const needsPorts =
               outgoing.length > 1;
 
             return {
               id: node.id,
+
               width: size.width,
+
               height: size.height,
 
               ...(needsPorts
@@ -763,7 +746,10 @@ export function AutomationNodesProvider({
                     },
 
                     ports: outgoing.map(
-                      (edge, index) => ({
+                      (
+                        edge,
+                        index
+                      ) => ({
                         id: `${node.id}__port__${edge.sourceHandle ?? index}`,
 
                         layoutOptions: {
@@ -781,27 +767,37 @@ export function AutomationNodesProvider({
           }
         );
 
+        /*
+         * Map React Flow edges to
+         * ELK port ids.
+         */
+
         const portLookup = new Map<
           string,
           string
         >();
 
         for (const node of nodes) {
-          const outgoing = sortedOutgoing(
-            node.id
-          );
+          const outgoing =
+            sortedOutgoing(node.id);
 
           if (outgoing.length <= 1) {
             continue;
           }
 
-          outgoing.forEach((edge, index) => {
-            portLookup.set(
-              edge.id,
-              `${node.id}__port__${edge.sourceHandle ?? index}`
-            );
-          });
+          outgoing.forEach(
+            (edge, index) => {
+              portLookup.set(
+                edge.id,
+                `${node.id}__port__${edge.sourceHandle ?? index}`
+              );
+            }
+          );
         }
+
+        /*
+         * Build ELK graph.
+         */
 
         const graph = {
           id: "root",
@@ -811,7 +807,8 @@ export function AutomationNodesProvider({
 
             "elk.direction": "DOWN",
 
-            "elk.spacing.nodeNode": "60",
+            "elk.spacing.nodeNode":
+              "60",
 
             "elk.layered.spacing.nodeNodeBetweenLayers":
               "110",
@@ -828,14 +825,6 @@ export function AutomationNodesProvider({
             "elk.layered.crossingMinimization.strategy":
               "LAYER_SWEEP",
 
-            /*
-             * Keep disconnected pieces of the
-             * graph from overlapping — each
-             * connected component gets laid
-             * out separately, then
-             * repositioned next to the others.
-             */
-
             "elk.separateConnectedComponents":
               "true",
 
@@ -845,20 +834,31 @@ export function AutomationNodesProvider({
 
           children,
 
-          edges: edges.map((edge) => ({
-            id: edge.id,
+          edges: edges.map(
+            (edge) => ({
+              id: edge.id,
 
-            sources: [
-              portLookup.get(edge.id) ??
-                edge.source,
-            ],
+              sources: [
+                portLookup.get(
+                  edge.id
+                ) ?? edge.source,
+              ],
 
-            targets: [edge.target],
-          })),
+              targets: [edge.target],
+            })
+          ),
         };
+
+        /*
+         * Run ELK.
+         */
 
         const result =
           await elk.layout(graph);
+
+        /*
+         * Apply calculated positions.
+         */
 
         const layoutedNodes =
           nodes.map((node) => {
@@ -887,6 +887,11 @@ export function AutomationNodesProvider({
             };
           });
 
+        /*
+         * Update graph only if something
+         * actually changed.
+         */
+
         const changed = updateGraph(
           (currentState) => ({
             ...currentState,
@@ -895,14 +900,6 @@ export function AutomationNodesProvider({
           }),
           true
         );
-
-        /*
-         * Only tell listeners a layout happened
-         * if positions actually moved — firing
-         * this on a no-op layout would make a
-         * listener think something changed when
-         * it didn't.
-         */
 
         if (changed) {
           window.dispatchEvent(
@@ -917,14 +914,21 @@ export function AutomationNodesProvider({
           err
         );
 
-        setError(
+        setLayoutError(
           err instanceof Error
             ? err.message
             : "Failed to auto-layout automation"
         );
+      } finally {
+        setIsAutoLayouting(false);
       }
     },
-    [nodes, edges, updateGraph]
+    [
+      nodes,
+      edges,
+      updateGraph,
+      isAutoLayouting,
+    ]
   );
 
   /*
@@ -1018,7 +1022,7 @@ export function AutomationNodesProvider({
   const fetchGraph = useCallback(
     async () => {
       setLoading(true);
-      setError(null);
+      setLoadError(null);
 
       const supabase =
         createClient();
@@ -1073,7 +1077,9 @@ export function AutomationNodesProvider({
         const loadedNodes:
           AutomationNode[] =
           stepsResult.data.map(
-            (step: AutomationStep) => ({
+            (
+              step: AutomationStep
+            ) => ({
               id: step.id,
 
               type: step.type,
@@ -1087,7 +1093,8 @@ export function AutomationNodesProvider({
                 label: step.title,
 
                 description:
-                  step.description ?? "",
+                  step.description ??
+                  "",
 
                 config:
                   step.config,
@@ -1099,17 +1106,14 @@ export function AutomationNodesProvider({
          * ----------------------------------------
          * Database edges -> React Flow edges
          * ----------------------------------------
-         *
-         * IMPORTANT:
-         *
-         * source_handle from Supabase
-         * becomes sourceHandle in React Flow.
          */
 
         const loadedEdges:
           Edge<AutomationEdgeType>[] =
           edgesResult.data.map(
-            (edge: AutomationEdge) => ({
+            (
+              edge: AutomationEdge
+            ) => ({
               id: edge.id,
 
               source:
@@ -1117,18 +1121,6 @@ export function AutomationNodesProvider({
 
               target:
                 edge.target_step_id,
-
-              /*
-               * IMPORTANT:
-               *
-               * Restore the condition branch.
-               *
-               * DB:
-               * source_handle = "true"
-               *
-               * React Flow:
-               * sourceHandle = "true"
-               */
 
               sourceHandle:
                 edge.source_handle ??
@@ -1149,14 +1141,18 @@ export function AutomationNodesProvider({
           );
 
         /*
-         * Apply loaded graph.
+         * ----------------------------------------
+         * Apply graph
+         * ----------------------------------------
          */
 
         setNodes(loadedNodes);
+
         setEdges(loadedEdges);
 
         /*
-         * Loaded graph is clean.
+         * Loaded graph becomes the
+         * current saved state.
          */
 
         setSavedState({
@@ -1165,33 +1161,32 @@ export function AutomationNodesProvider({
         });
 
         /*
-         * Reset undo/redo.
+         * Reset history.
          */
 
         setHistory({
           past: [],
           future: [],
         });
+
+        setLoadError(null);
       } catch (err) {
         console.error(
           "Failed to fetch automation graph:",
           err
         );
 
-        setNodes([]);
-        setEdges([]);
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT clear the existing graph.
+         *
+         * The user should still be able to
+         * see/use the last successfully loaded
+         * graph while the error is displayed.
+         */
 
-        setSavedState({
-          nodes: [],
-          edges: [],
-        });
-
-        setHistory({
-          past: [],
-          future: [],
-        });
-
-        setError(
+        setLoadError(
           err instanceof Error
             ? err.message
             : "Failed to load automation graph"
@@ -1217,21 +1212,28 @@ export function AutomationNodesProvider({
    * ----------------------------------------
    * Save graph
    * ----------------------------------------
-   *
-   * Sends BOTH nodes and edges to the RPC.
-   *
-   * IMPORTANT:
-   * Edge source_handle is persisted.
    */
 
   const save = useCallback(
     async () => {
-      if (!isDirty || isSaving) {
+      /*
+       * Don't save when:
+       *
+       * - nothing changed
+       * - another save is running
+       * - initial graph loading is running
+       */
+
+      if (
+        !isDirty ||
+        isSaving ||
+        loading
+      ) {
         return;
       }
 
       setIsSaving(true);
-      setError(null);
+      setSaveError(null);
 
       const supabase =
         createClient();
@@ -1273,17 +1275,6 @@ export function AutomationNodesProvider({
          * ----------------------------------------
          * Edges
          * ----------------------------------------
-         *
-         * IMPORTANT:
-         *
-         * React Flow:
-         * sourceHandle
-         *
-         * Supabase:
-         * source_handle
-         *
-         * This is the piece that makes
-         * condition branching work.
          */
 
         const edgesToSave =
@@ -1300,35 +1291,10 @@ export function AutomationNodesProvider({
             target_step_id:
               edge.target,
 
-            /*
-             * TRUE / FALSE branch:
-             *
-             * "true"
-             * "false"
-             *
-             * Normal nodes:
-             * null
-             */
-
             source_handle:
               edge.sourceHandle ??
               null,
           }));
-
-        /*
-         * Debugging:
-         *
-         * You should now see:
-         *
-         * [
-         *   {
-         *     source_handle: "true"
-         *   },
-         *   {
-         *     source_handle: "false"
-         *   }
-         * ]
-         */
 
         console.log(
           "Edges being saved:",
@@ -1342,7 +1308,7 @@ export function AutomationNodesProvider({
          */
 
         const {
-          error: saveError,
+          error: rpcError,
         } = await supabase.rpc(
           "save_automation_graph",
           {
@@ -1357,12 +1323,14 @@ export function AutomationNodesProvider({
           }
         );
 
-        if (saveError) {
-          throw saveError;
+        if (rpcError) {
+          throw rpcError;
         }
 
         /*
-         * Current frontend graph is
+         * Save succeeded.
+         *
+         * The current frontend state is now
          * synchronized with Supabase.
          */
 
@@ -1370,13 +1338,24 @@ export function AutomationNodesProvider({
           nodes,
           edges,
         });
+
+        setSaveError(null);
       } catch (err) {
         console.error(
           "Failed to save automation:",
           err
         );
 
-        setError(
+        /*
+         * IMPORTANT:
+         *
+         * Keep the graph dirty.
+         *
+         * Supabase does not contain this
+         * frontend state because the save failed.
+         */
+
+        setSaveError(
           err instanceof Error
             ? err.message
             : "Failed to save automation"
@@ -1391,6 +1370,7 @@ export function AutomationNodesProvider({
       edges,
       isDirty,
       isSaving,
+      loading,
     ]
   );
 
@@ -1424,7 +1404,9 @@ export function AutomationNodesProvider({
         event.metaKey;
 
       /*
+       * ----------------------------------------
        * Undo
+       * ----------------------------------------
        */
 
       if (
@@ -1441,7 +1423,9 @@ export function AutomationNodesProvider({
       }
 
       /*
+       * ----------------------------------------
        * Redo
+       * ----------------------------------------
        */
 
       if (
@@ -1464,7 +1448,9 @@ export function AutomationNodesProvider({
       }
 
       /*
+       * ----------------------------------------
        * Save
+       * ----------------------------------------
        */
 
       if (
@@ -1480,7 +1466,9 @@ export function AutomationNodesProvider({
       }
 
       /*
+       * ----------------------------------------
        * Auto layout
+       * ----------------------------------------
        */
 
       if (
@@ -1527,6 +1515,12 @@ export function AutomationNodesProvider({
         nodes,
         edges,
 
+        loading,
+        error,
+
+        isSaving,
+        isAutoLayouting,
+
         onNodesChange,
         onEdgesChange,
         onConnect,
@@ -1547,7 +1541,6 @@ export function AutomationNodesProvider({
           history.future.length > 0,
 
         isDirty,
-        isSaving,
 
         save,
       }}
