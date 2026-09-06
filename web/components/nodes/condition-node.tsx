@@ -105,7 +105,7 @@ export function ConditionNode({
         position={Position.Bottom}
         id="true"
         style={{ left: "28%" }}
-        className="!bg-emerald-500 !border-emerald-700"
+        className="bg-emerald-500! border-emerald-700!"
       />
 
       <Handle
@@ -113,7 +113,7 @@ export function ConditionNode({
         position={Position.Bottom}
         id="false"
         style={{ left: "72%" }}
-        className="!bg-rose-500 !border-rose-700"
+        className="bg-rose-500! border-rose-700!"
       />
     </NodeCard>
   );

@@ -40,7 +40,7 @@ export default function NewAutomation() {
 
   return (
     <div className="min-h-screen p-4 md:flex md:items-center md:justify-center md:p-8">
-      <Card className="w-full max-w-2xl border-0 shadow-none md:border md:p-8 md:shadow-sm">
+      <Card className="w-full max-w-2xl border-0 shadow-none md:border md:p-8 md:shadow-xs">
         <div className="space-y-6">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">

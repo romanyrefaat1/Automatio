@@ -138,7 +138,7 @@ function ShortcutKeys({
                 text-xs
                 font-medium
                 text-muted-foreground
-                shadow-sm
+                shadow-xs
               "
             >
               {displayKey}
@@ -267,7 +267,7 @@ export function KeyboardShortcutsDialog() {
               text-xs
               font-medium
               text-muted-foreground
-              shadow-sm
+              shadow-xs
             "
           >
             Esc

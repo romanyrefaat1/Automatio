@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import type { AutomationWithLastRun } from "../_types";
+import { AnimatedButton } from "@/components/ui/animated-button";
 
 interface AutomationCardProps {
   automation: AutomationWithLastRun;
@@ -77,30 +78,6 @@ export default function AutomationCard({
 
   const TriggerIcon = triggerIcons[automation.trigger_type] ?? Zap;
 
-  async function handleRunNow(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (isRunning) return;
-
-    setIsRunning(true);
-
-    try {
-      const res = await fetch(`/api/automations/${automation.id}/run`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to start run");
-      }
-
-      router.push(`/automations/${automation.id}/runs`);
-    } catch (error) {
-      console.error(error);
-      setIsRunning(false);
-    }
-  }
-
   const lastRunDate = automation.lastRun
     ? new Date(
         automation.lastRun.finished_at ??
@@ -114,7 +91,7 @@ export default function AutomationCard({
       className="
         group relative flex min-h-[218px] flex-col overflow-hidden
         border-border bg-card
-        shadow-sm
+        shadow-xs
         transition-all duration-200
         hover:-translate-y-0.5
         hover:border-primary/30
@@ -168,19 +145,13 @@ export default function AutomationCard({
             </DropdownMenuItem>
 
             <DropdownMenuItem asChild>
-              <Link href={`/automations/${automation.id}/runs`}>
+              <Link href={`/builder/${automation.id}/runs`}>
                 <ListTree className="mr-2 h-4 w-4" />
                 View runs
               </Link>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              onClick={handleRunNow}
-              disabled={isRunning}
-            >
-              <Play className="mr-2 h-4 w-4" />
-              Run now
-            </DropdownMenuItem>
+          
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
@@ -234,20 +205,12 @@ export default function AutomationCard({
             )}
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="
-              relative z-20 h-8 shrink-0 gap-1.5
-              border-border bg-background px-2.5
-              hover:bg-muted
-            "
-            onClick={handleRunNow}
-            disabled={isRunning}
-          >
-            <Play className="h-3.5 w-3.5" />
-            {isRunning ? "Starting..." : "Run"}
-          </Button>
+          <Link href={`/builder/${automation.id}`}>
+          <AnimatedButton>
+              <Play className="mr-2 h-4 w-4" />
+              Visit builder
+              </AnimatedButton>
+            </Link>
         </div>
       </CardContent>
     </Card>

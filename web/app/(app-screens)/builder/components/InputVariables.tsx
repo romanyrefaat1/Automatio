@@ -97,7 +97,7 @@ export function VariableSelector({
             "flex h-9 w-full items-center justify-between",
             "rounded-md border px-3 py-2 text-sm",
             "hover:bg-accent hover:text-accent-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+            "focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2",
             "disabled:pointer-events-none disabled:opacity-50",
             className
           )}
@@ -122,7 +122,7 @@ export function VariableSelector({
 
       <PopoverContent
         align="start"
-        className="w-[var(--radix-popover-trigger-width)] p-0"
+        className="w-(--radix-popover-trigger-width) p-0"
       >
         {/*
           Command/CommandList handle Up/Down/Enter navigation

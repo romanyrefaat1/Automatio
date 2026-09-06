@@ -41,7 +41,7 @@ export function PressNode({
       <div className={contentBase}>
         <NodeField label="Key to Press">
           <div className="pt-0.5">
-            <kbd className="inline-block rounded-md border border-border bg-muted/70 px-2.5 py-1 text-xs font-mono font-semibold shadow-sm text-foreground">
+            <kbd className="inline-block rounded-md border border-border bg-muted/70 px-2.5 py-1 text-xs font-mono font-semibold shadow-xs text-foreground">
               {key}
             </kbd>
           </div>

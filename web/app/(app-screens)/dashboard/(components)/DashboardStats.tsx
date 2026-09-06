@@ -51,7 +51,7 @@ export default function DashboardStats({
           <Card
             key={stat.label}
             className="
-              border-border bg-card shadow-sm
+              border-border bg-card shadow-xs
               transition-shadow duration-200
               hover:shadow-md
             "

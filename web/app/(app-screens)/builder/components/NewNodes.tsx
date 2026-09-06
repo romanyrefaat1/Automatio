@@ -115,7 +115,7 @@ export default function NewNodes() {
               left-0
               z-30
               w-5
-              bg-gradient-to-r
+              bg-linear-to-r
               from-secondary
               to-transparent
               transition-opacity
@@ -133,7 +133,7 @@ export default function NewNodes() {
               right-0
               z-30
               w-5
-              bg-gradient-to-l
+              bg-linear-to-l
               from-secondary
               to-transparent
               transition-opacity

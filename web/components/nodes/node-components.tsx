@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Code, Variable, Hash } from "lucide-react";
 
 export const nodeBase =
-  "min-w-[260px] max-w-[320px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/40";
+  "min-w-[260px] max-w-[320px] overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-xs transition-all hover:shadow-md hover:border-primary/40";
 
 export const headerBase =
   "flex items-start gap-3 border-b border-border/70 bg-muted/20 px-3.5 py-3";
@@ -154,7 +154,7 @@ export function NodeBadgeField({
 }: {
   label: string;
   badgeText: string;
-  variant?: "default" | "secondary" | "outline" | "destructive";
+  variant?: "default" | "secondary" | "outline-solid" | "destructive";
   className?: string;
 }) {
   return (

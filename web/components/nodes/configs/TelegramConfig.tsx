@@ -301,7 +301,7 @@ export default function TelegramConfig({
               className="mt-6"
             >
               <ScrollArea>
-                <Timeline className="h-[25rem]">
+                <Timeline className="h-100">
                   {/* STEP 1 */}
                   <TimelineItem>
                     <TimelineHeader>
@@ -596,7 +596,7 @@ export default function TelegramConfig({
               className="mt-6"
             >
               <ScrollArea>
-                <div className="h-[25rem] space-y-6 pr-4">
+                <div className="h-100 space-y-6 pr-4">
                   <div>
                     <h2 className="text-lg font-semibold">
                       Connect your existing bot

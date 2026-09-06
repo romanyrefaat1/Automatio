@@ -96,7 +96,7 @@ export function ParallelNode({
             style={{
               left: `${leftPercent}%`,
             }}
-            className="!bg-indigo-500 !border-indigo-700"
+            className="bg-indigo-500! border-indigo-700!"
           />
         );
       })}

@@ -114,7 +114,7 @@ export function LoopNode({
         position={Position.Bottom}
         id="body"
         style={{ left: "28%" }}
-        className="!bg-primary !border-primary"
+        className="bg-primary! border-primary!"
       />
 
       <Handle
@@ -122,7 +122,7 @@ export function LoopNode({
         position={Position.Bottom}
         id="done"
         style={{ left: "72%" }}
-        className="!bg-muted-foreground !border-muted-foreground"
+        className="bg-muted-foreground! border-muted-foreground!"
       />
     </NodeCard>
   );

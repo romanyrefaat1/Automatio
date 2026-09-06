@@ -446,7 +446,7 @@ export default function AutomationTopInfo() {
         <PopoverTrigger asChild>
           <Button
             variant="outline"
-            className="h-9 gap-2 rounded-lg border-border bg-card px-3 shadow-sm"
+            className="h-9 gap-2 rounded-lg border-border bg-card px-3 shadow-xs"
           >
             <span
               className={cn(
