@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import {
   Activity,
   ArrowUpRight,
@@ -13,7 +12,6 @@ import {
   Search,
   X,
 } from "lucide-react";
-
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +41,12 @@ type AutomationRun = {
   status: RunStatus;
   trigger: RunTrigger;
   error: string | null;
+};
+
+type PageProps = {
+  params: Promise<{
+    id: string;
+  }>;
 };
 
 const STATUS_LABELS: Record<RunStatus, string> = {
@@ -94,9 +98,10 @@ function formatRelativeTime(value: string | null) {
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
-    year: date.getFullYear() !== new Date().getFullYear()
-      ? "numeric"
-      : undefined,
+    year:
+      date.getFullYear() !== new Date().getFullYear()
+        ? "numeric"
+        : undefined,
   }).format(date);
 }
 
@@ -112,6 +117,7 @@ function formatExactDate(value: string | null) {
 function formatDuration(
   startedAt: string | null,
   finishedAt: string | null,
+  now: number,
 ) {
   if (!startedAt) return "—";
 
@@ -119,7 +125,7 @@ function formatDuration(
 
   const end = finishedAt
     ? new Date(finishedAt).getTime()
-    : Date.now();
+    : now;
 
   const duration = Math.max(0, end - start);
 
@@ -151,7 +157,7 @@ function StatusBadge({
         className="border-info/30 bg-info-bg px-2 py-0.5 font-medium text-info-fg"
       >
         <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-info-fg" />
-        Running
+        {STATUS_LABELS[status]}
       </Badge>
     );
   }
@@ -163,9 +169,12 @@ function StatusBadge({
         className="border-success/30 bg-success-bg px-2 py-0.5 font-medium text-success-fg"
       >
         <span className="mr-1.5 flex size-3 items-center justify-center rounded-full bg-success-fg text-success-foreground">
-          <Check className="size-2" strokeWidth={3} />
+          <Check
+            className="size-2"
+            strokeWidth={3}
+          />
         </span>
-        Completed
+        {STATUS_LABELS[status]}
       </Badge>
     );
   }
@@ -177,9 +186,12 @@ function StatusBadge({
         className="border-destructive/30 bg-destructive-bg px-2 py-0.5 font-medium text-destructive-fg"
       >
         <span className="mr-1.5 flex size-3 items-center justify-center rounded-full bg-destructive-fg text-destructive-foreground">
-          <X className="size-2" strokeWidth={3} />
+          <X
+            className="size-2"
+            strokeWidth={3}
+          />
         </span>
-        Failed
+        {STATUS_LABELS[status]}
       </Badge>
     );
   }
@@ -190,8 +202,8 @@ function StatusBadge({
         variant="outline"
         className="border-warning/30 bg-warning-bg px-2 py-0.5 font-medium text-warning-fg"
       >
-        <span className="mr-1.5 size-1.5 rounded-full bg-warning-fg" />
-        Queued
+        <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-warning-fg" />
+        {STATUS_LABELS[status]}
       </Badge>
     );
   }
@@ -202,7 +214,7 @@ function StatusBadge({
       className="border-border bg-muted px-2 py-0.5 font-medium text-muted-foreground"
     >
       <span className="mr-1.5 size-1.5 rounded-full bg-muted-foreground" />
-      Cancelled
+      {STATUS_LABELS[status]}
     </Badge>
   );
 }
@@ -237,26 +249,38 @@ function Stat({
   );
 }
 
-export default function AutomationRunsPage() {
-  const params = useParams<{ id: string }>();
-  const automationId = params.id;
+function AutomationRunsContent({
+  params,
+}: PageProps) {
+  const { id: automationId } = React.use(params);
 
-  const supabase = React.useMemo(() => createClient(), []);
+  const supabase = React.useMemo(
+    () => createClient(),
+    [],
+  );
 
   const [automationName, setAutomationName] =
     React.useState("Automation");
 
-  const [runs, setRuns] = React.useState<AutomationRun[]>([]);
+  const [runs, setRuns] = React.useState<AutomationRun[]>(
+    [],
+  );
+
   const [loading, setLoading] = React.useState(true);
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] =
+    React.useState(false);
 
   const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<
-    "all" | RunStatus
-  >("all");
+
+  const [statusFilter, setStatusFilter] =
+    React.useState<"all" | RunStatus>("all");
 
   const [error, setError] = React.useState<string | null>(
     null,
+  );
+
+  const [now, setNow] = React.useState(() =>
+    Date.now(),
   );
 
   const loadRuns = React.useCallback(
@@ -329,6 +353,173 @@ export default function AutomationRunsPage() {
     void loadRuns();
   }, [loadRuns]);
 
+  /*
+   * Realtime source of truth for automation_runs.
+   *
+   * INSERT:
+   *   Add a new run immediately.
+   *
+   * UPDATE:
+   *   Replace the existing run immediately.
+   *   This means queued -> running -> completed/failed
+   *   is reflected without a refetch.
+   *
+   * DELETE:
+   *   Remove the run immediately.
+   */
+  React.useEffect(() => {
+    const channel = supabase
+      .channel(`automation-runs-page-${automationId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "automation_runs",
+          filter: `automation_id=eq.${automationId}`,
+        },
+        (payload) => {
+          console.log(
+            "AUTOMATION RUN REALTIME:",
+            payload.eventType,
+            payload.new,
+          );
+
+          if (payload.eventType === "INSERT") {
+            const newRun =
+              payload.new as AutomationRun;
+
+            setRuns((current) => {
+              const exists = current.some(
+                (run) => run.id === newRun.id,
+              );
+
+              if (exists) {
+                return current
+                  .map((run) =>
+                    run.id === newRun.id
+                      ? newRun
+                      : run,
+                  )
+                  .sort(
+                    (a, b) =>
+                      new Date(
+                        b.created_at,
+                      ).getTime() -
+                      new Date(
+                        a.created_at,
+                      ).getTime(),
+                  );
+              }
+
+              return [newRun, ...current].sort(
+                (a, b) =>
+                  new Date(b.created_at).getTime() -
+                  new Date(a.created_at).getTime(),
+              );
+            });
+
+            return;
+          }
+
+          if (payload.eventType === "UPDATE") {
+            const updatedRun =
+              payload.new as AutomationRun;
+
+            setRuns((current) => {
+              const exists = current.some(
+                (run) => run.id === updatedRun.id,
+              );
+
+              if (!exists) {
+                return [updatedRun, ...current].sort(
+                  (a, b) =>
+                    new Date(
+                      b.created_at,
+                    ).getTime() -
+                    new Date(
+                      a.created_at,
+                    ).getTime(),
+                );
+              }
+
+              return current
+                .map((run) =>
+                  run.id === updatedRun.id
+                    ? updatedRun
+                    : run,
+                )
+                .sort(
+                  (a, b) =>
+                    new Date(
+                      b.created_at,
+                    ).getTime() -
+                    new Date(
+                      a.created_at,
+                    ).getTime(),
+                );
+            });
+
+            return;
+          }
+
+          if (payload.eventType === "DELETE") {
+            const deletedRun =
+              payload.old as Partial<AutomationRun>;
+
+            setRuns((current) =>
+              current.filter(
+                (run) => run.id !== deletedRun.id,
+              ),
+            );
+          }
+        },
+      )
+      .subscribe((status, err) => {
+        console.log(
+          `Automation runs realtime [${automationId}]:`,
+          status,
+          err,
+        );
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [automationId, supabase]);
+
+  /*
+   * Keep durations and relative timestamps live while
+   * there is an active run.
+   *
+   * Realtime updates the data.
+   * This interval only updates Date.now() so the UI can
+   * display "12s", "13s", "14s", etc. without polling Supabase.
+   */
+  const hasActiveRuns = React.useMemo(
+    () =>
+      runs.some(
+        (run) =>
+          run.status === "running" ||
+          run.status === "queued",
+      ),
+    [runs],
+  );
+
+  React.useEffect(() => {
+    if (!hasActiveRuns) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [hasActiveRuns]);
+
   const filteredRuns = React.useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -348,8 +539,8 @@ export default function AutomationRunsPage() {
     });
   }, [runs, search, statusFilter]);
 
-  const stats = React.useMemo(() => {
-    return {
+  const stats = React.useMemo(
+    () => ({
       total: runs.length,
       completed: runs.filter(
         (run) => run.status === "completed",
@@ -362,8 +553,9 @@ export default function AutomationRunsPage() {
           run.status === "running" ||
           run.status === "queued",
       ).length,
-    };
-  }, [runs]);
+    }),
+    [runs],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -385,6 +577,19 @@ export default function AutomationRunsPage() {
           </span>
 
           <div className="ml-auto flex items-center gap-2">
+            <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+              <span
+                className={`size-1.5 rounded-full ${
+                  hasActiveRuns
+                    ? "animate-pulse bg-success-fg"
+                    : "bg-muted-foreground/50"
+                }`}
+              />
+              {hasActiveRuns
+                ? "Live"
+                : "Realtime connected"}
+            </div>
+
             <Button
               variant="outline"
               size="sm"
@@ -405,7 +610,9 @@ export default function AutomationRunsPage() {
               size="sm"
               className="h-8"
             >
-              <Link href={`/builder/${automationId}`}>
+              <Link
+                href={`/builder/${automationId}`}
+              >
                 Open builder
               </Link>
             </Button>
@@ -423,7 +630,8 @@ export default function AutomationRunsPage() {
                 </h1>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Execution history for {automationName}.
+                  Execution history for{" "}
+                  {automationName}.
                 </p>
               </div>
 
@@ -550,7 +758,8 @@ export default function AutomationRunsPage() {
                   value === "all"
                     ? runs.length
                     : runs.filter(
-                        (run) => run.status === value,
+                        (run) =>
+                          run.status === value,
                       ).length;
 
                 return (
@@ -640,7 +849,13 @@ export default function AutomationRunsPage() {
                     key={run.id}
                     className="group border-b last:border-b-0"
                   >
-                    <div className="flex min-h-[76px] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-muted/20">
+                    <div
+                      className={`flex min-h-[76px] items-center gap-4 px-5 py-3.5 transition-colors ${
+                        run.status === "running"
+                          ? "bg-info-bg/20"
+                          : "hover:bg-muted/20"
+                      }`}
+                    >
                       <div className="min-w-0 flex-1 lg:grid lg:grid-cols-[minmax(260px,1.6fr)_150px_120px_150px_120px_110px] lg:items-center lg:gap-4">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
@@ -707,6 +922,7 @@ export default function AutomationRunsPage() {
                           {formatDuration(
                             run.started_at,
                             run.finished_at,
+                            now,
                           )}
                         </div>
                       </div>
@@ -728,7 +944,7 @@ export default function AutomationRunsPage() {
 
                     {run.error ? (
                       <div className="px-5 pb-3 pt-0">
-                        <div className="ml-0 rounded-md border border-destructive/20 bg-destructive-bg px-3 py-2">
+                        <div className="rounded-md border border-destructive/20 bg-destructive-bg px-3 py-2">
                           <p className="truncate text-[11px] text-destructive-fg">
                             {run.error}
                           </p>
@@ -743,14 +959,11 @@ export default function AutomationRunsPage() {
         </div>
       </main>
 
-      {runs.some(
-        (run) =>
-          run.status === "running" ||
-          run.status === "queued",
-      ) ? (
+      {hasActiveRuns ? (
         <div className="pointer-events-none fixed bottom-5 left-1/2 z-20 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border bg-background/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
             <Loader2 className="size-3.5 animate-spin text-info-fg" />
+
             <span className="font-medium">
               {stats.active === 1
                 ? "1 run in progress"
@@ -760,5 +973,40 @@ export default function AutomationRunsPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function AutomationRunsPage(
+  props: PageProps,
+) {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex h-full min-h-0 flex-col bg-background">
+          <header className="shrink-0 border-b">
+            <div className="mx-auto flex h-14 w-full max-w-[1480px] items-center px-6">
+              <Skeleton className="h-4 w-36" />
+            </div>
+          </header>
+
+          <main className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-[1480px] px-6 py-8">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="mt-2 h-4 w-72" />
+
+              <Card className="mt-8 overflow-hidden shadow-none">
+                <div className="p-5">
+                  <Skeleton className="h-4 w-full max-w-2xl" />
+                  <Skeleton className="mt-4 h-4 w-full" />
+                  <Skeleton className="mt-4 h-4 w-5/6" />
+                </div>
+              </Card>
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <AutomationRunsContent {...props} />
+    </React.Suspense>
   );
 }

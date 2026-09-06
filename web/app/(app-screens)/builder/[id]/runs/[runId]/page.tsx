@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-    Activity,
+  Activity,
   ArrowLeft,
   ArrowUpRight,
   Check,
@@ -24,13 +24,17 @@ import {
   Zap,
 } from "lucide-react";
 
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
 
 type RunStatus =
@@ -102,17 +106,6 @@ type AutomationStep = {
   position: number;
 };
 
-const RUN_STATUS_LABEL: Record<
-  RunStatus,
-  string
-> = {
-  queued: "Queued",
-  running: "Running",
-  completed: "Completed",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
-
 const STEP_STATUS_LABEL: Record<
   RunStepStatus,
   string
@@ -136,14 +129,6 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function formatTime(value: string | null) {
-  if (!value) return "—";
-
-  return new Intl.DateTimeFormat(undefined, {
-    timeStyle: "medium",
   }).format(new Date(value));
 }
 
@@ -185,6 +170,7 @@ function formatRelative(value: string | null) {
 function formatDuration(
   startedAt: string | null,
   finishedAt: string | null,
+  now = Date.now(),
 ) {
   if (!startedAt) return "—";
 
@@ -192,7 +178,7 @@ function formatDuration(
 
   const end = finishedAt
     ? new Date(finishedAt).getTime()
-    : Date.now();
+    : now;
 
   const duration = Math.max(0, end - start);
 
@@ -447,11 +433,10 @@ function InfoItem({
 }
 
 export default function AutomationRunDetailPage() {
-  const params =
-    useParams<{
-      id: string;
-      runId: string;
-    }>();
+  const params = useParams<{
+    id: string;
+    runId: string;
+  }>();
 
   const automationId = params.id;
   const runId = params.runId;
@@ -479,6 +464,7 @@ export default function AutomationRunDetailPage() {
   >([]);
 
   const [loading, setLoading] = React.useState(true);
+
   const [refreshing, setRefreshing] =
     React.useState(false);
 
@@ -488,6 +474,16 @@ export default function AutomationRunDetailPage() {
 
   const [expandedSteps, setExpandedSteps] =
     React.useState<Set<string>>(new Set());
+
+  /*
+   * This exists only so an active run's duration
+   * keeps ticking visually.
+   *
+   * It does NOT fetch anything.
+   */
+  const [now, setNow] = React.useState(
+    () => Date.now(),
+  );
 
   const loadRun = React.useCallback(
     async (manualRefresh = false) => {
@@ -619,6 +615,219 @@ export default function AutomationRunDetailPage() {
     void loadRun();
   }, [loadRun]);
 
+  /*
+   * Realtime execution updates.
+   *
+   * One channel handles:
+   * - automation_runs
+   * - automation_run_steps
+   * - automation_artifacts
+   */
+  React.useEffect(() => {
+    const channelName =
+      `automation-run-detail-${runId}`;
+
+    const channel = supabase
+      .channel(channelName)
+
+      /*
+       * Run status / metadata
+       */
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "automation_runs",
+          filter: `id=eq.${runId}`,
+        },
+        (payload) => {
+          console.log(
+            "[Realtime] automation_runs",
+            payload.eventType,
+            payload.new,
+          );
+
+          if (payload.eventType === "DELETE") {
+            setRun(null);
+            setSteps([]);
+            setArtifacts([]);
+            return;
+          }
+
+          setRun(
+            payload.new as AutomationRun,
+          );
+        },
+      )
+
+      /*
+       * Individual step execution updates.
+       */
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "automation_run_steps",
+          filter: `run_id=eq.${runId}`,
+        },
+        (payload) => {
+          console.log(
+            "[Realtime] automation_run_steps",
+            payload.eventType,
+            payload.new,
+          );
+
+          if (
+            payload.eventType === "DELETE"
+          ) {
+            const deleted =
+              payload.old as Partial<AutomationRunStep>;
+
+            if (deleted.id) {
+              setSteps((current) =>
+                current.filter(
+                  (step) =>
+                    step.id !== deleted.id,
+                ),
+              );
+            }
+
+            return;
+          }
+
+          const nextStep =
+            payload.new as AutomationRunStep;
+
+          setSteps((current) => {
+            if (payload.eventType === "INSERT") {
+              const exists = current.some(
+                (step) =>
+                  step.id === nextStep.id,
+              );
+
+              if (exists) {
+                return current;
+              }
+
+              return [
+                ...current,
+                nextStep,
+              ].sort(
+                (a, b) =>
+                  a.position - b.position,
+              );
+            }
+
+            return current
+              .map((step) =>
+                step.id === nextStep.id
+                  ? nextStep
+                  : step,
+              )
+              .sort(
+                (a, b) =>
+                  a.position - b.position,
+              );
+          });
+        },
+      )
+
+      /*
+       * Artifacts can appear while a run is executing.
+       */
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "automation_artifacts",
+          filter: `run_id=eq.${runId}`,
+        },
+        (payload) => {
+          console.log(
+            "[Realtime] automation_artifacts",
+            payload.eventType,
+            payload.new,
+          );
+
+          if (
+            payload.eventType === "DELETE"
+          ) {
+            const deleted =
+              payload.old as Partial<AutomationArtifact>;
+
+            if (deleted.id) {
+              setArtifacts((current) =>
+                current.filter(
+                  (artifact) =>
+                    artifact.id !== deleted.id,
+                ),
+              );
+            }
+
+            return;
+          }
+
+          const nextArtifact =
+            payload.new as AutomationArtifact;
+
+          setArtifacts((current) => {
+            if (
+              payload.eventType === "INSERT"
+            ) {
+              const exists = current.some(
+                (artifact) =>
+                  artifact.id ===
+                  nextArtifact.id,
+              );
+
+              if (exists) {
+                return current;
+              }
+
+              return [
+                ...current,
+                nextArtifact,
+              ].sort(
+                (a, b) =>
+                  new Date(
+                    a.created_at,
+                  ).getTime() -
+                  new Date(
+                    b.created_at,
+                  ).getTime(),
+              );
+            }
+
+            return current.map(
+              (artifact) =>
+                artifact.id ===
+                nextArtifact.id
+                  ? nextArtifact
+                  : artifact,
+            );
+          });
+        },
+      )
+      .subscribe((status, err) => {
+        console.log(
+          `[Realtime] run ${runId}:`,
+          status,
+          err,
+        );
+      });
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [runId, supabase]);
+
+  /*
+   * Keep elapsed duration visually live without
+   * making network requests.
+   */
   React.useEffect(() => {
     if (
       !run ||
@@ -629,17 +838,15 @@ export default function AutomationRunDetailPage() {
     }
 
     const interval = window.setInterval(() => {
-      void loadRun(true);
-    }, 3000);
+      setNow(Date.now());
+    }, 1000);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [run, loadRun]);
+  }, [run]);
 
-  const toggleStep = (
-    stepId: string,
-  ) => {
+  const toggleStep = (stepId: string) => {
     setExpandedSteps((current) => {
       const next = new Set(current);
 
@@ -666,6 +873,7 @@ export default function AutomationRunDetailPage() {
   const totalDuration = formatDuration(
     run?.started_at ?? null,
     run?.finished_at ?? null,
+    now,
   );
 
   return (
@@ -780,6 +988,7 @@ export default function AutomationRunDetailPage() {
               <Card className="shadow-none">
                 <div className="p-5">
                   <Skeleton className="h-5 w-32" />
+
                   <div className="mt-5 space-y-3">
                     {Array.from({
                       length: 6,
@@ -1081,6 +1290,7 @@ export default function AutomationRunDetailPage() {
                                         {formatDuration(
                                           step.started_at,
                                           step.finished_at,
+                                          now,
                                         )}
                                       </span>
 
@@ -1367,7 +1577,7 @@ export default function AutomationRunDetailPage() {
                       {steps.length > 0 ? (
                         <div className="mt-4 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-1.5 rounded-full bg-success"
+                            className="h-1.5 rounded-full bg-success transition-all duration-300"
                             style={{
                               width: `${
                                 (completedSteps /

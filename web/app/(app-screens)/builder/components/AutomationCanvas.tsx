@@ -9,9 +9,11 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import RightPanel from "./RightPanel";
+import AutomationTopInfo from "./AutomationTopInfo";
+import CanvasSurviveButtons from "./CanvasSurviveButtons";
 
 import {
   ResizableHandle,
@@ -20,9 +22,7 @@ import {
 } from "@/components/ui/resizable";
 
 import { useAutomationNodes } from "../contexts/AutomationNodesContext";
-
-import AutomationTopInfo from "./AutomationTopInfo";
-import CanvasSurviveButtons from "./CanvasSurviveButtons";
+import { useAutomationContext } from "../contexts/AutomationContext";
 
 import { nodeTypes } from "@/types/nodes";
 import NodeContextMenu from "@/components/nodes/NodeContextMenu";
@@ -40,6 +40,13 @@ export default function AutomationCanvas() {
     removeNode,
   } = useAutomationNodes();
 
+  const {
+    isRunning,
+    activeRun,
+    runSteps,
+    runningStepId,
+  } = useAutomationContext();
+
   const [menuState, setMenuState] = useState<{
     nodeId: string;
     position: {
@@ -48,16 +55,16 @@ export default function AutomationCanvas() {
     };
   } | null>(null);
 
-  // Defer the resizable layout's first render by one tick so
-  // react-resizable-panels measures a fully-sized parent instead
-  // of a 0-width flash on initial mount.
   const [layoutReady, setLayoutReady] = useState(false);
 
   useEffect(() => {
     setLayoutReady(true);
   }, []);
 
-  const onNodeContextMenu: NodeMouseHandler = (event, node) => {
+  const onNodeContextMenu: NodeMouseHandler = (
+    event,
+    node
+  ) => {
     event.preventDefault();
 
     setMenuState({
