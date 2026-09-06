@@ -21,7 +21,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 import {
@@ -30,6 +31,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 const navItems = [
   {
@@ -46,34 +49,71 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { state } = useSidebar();
+
+  const isCollapsed = state === "collapsed";
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border bg-sidebar">
+      <SidebarHeader className="border-b border-sidebar-border bg-sidebar p-2 py-6">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-              tooltip="Automatio"
-              className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            >
-              <Link href="/dashboard">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
+            {isCollapsed ? (
+              <div className="group/logo relative flex h-8 w-8 shrink-0 items-center justify-center">
+                {/* Logo */}
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-sidebar-primary transition-opacity duration-150 group-hover/logo:opacity-0">
                   <Workflow className="h-4 w-4 text-sidebar-primary-foreground" />
                 </div>
 
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-none">
-                  <span className="truncate font-semibold">
-                    Automatio
-                  </span>
+                {/* Hover trigger */}
+                <SidebarTrigger
+                  aria-label="Open sidebar"
+                  className="
+                    absolute inset-0
+                    h-8 w-8
+                    rounded-lg
+                    bg-sidebar-primary
+                    text-sidebar-primary-foreground
+                    opacity-0
+                    transition-opacity
+                    duration-150
+                    group-hover/logo:opacity-100
+                    hover:bg-sidebar-primary/90
+                    hover:text-sidebar-primary-foreground
+                  "
+                />
+              </div>
+            ) : (
+              /*
+               * EXPANDED
+               * Normal header layout.
+               * The trigger is always visible on the far right.
+               */
+              <div className="flex w-full items-center gap-2">
+                <Link
+                  href="/dashboard"
+                  className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden"
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
+                    <Workflow className="h-4 w-4 text-sidebar-primary-foreground" />
+                  </div>
 
-                  <span className="truncate text-xs text-sidebar-foreground/60">
-                    Browser automation
-                  </span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden leading-none">
+                    <span className="truncate font-semibold">
+                      Automatio
+                    </span>
+                    <span className="truncate text-xs text-sidebar-foreground/60">
+                      Browser automation
+                    </span>
+                  </div>
+                </Link>
+
+                <SidebarTrigger
+                  aria-label="Collapse sidebar"
+                  className="ml-auto shrink-0"
+                />
+              </div>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -121,8 +161,12 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border bg-sidebar">
+      <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
         <SidebarMenu>
+          <SidebarMenuItem className="flex gap-2 items-center justify-start">
+            <ThemeSwitcher /> <span className="text-sm">Theme switcher</span>
+          </SidebarMenuItem>
+
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -143,7 +187,6 @@ export function AppSidebar() {
                     <span className="truncate text-sm font-medium">
                       Account
                     </span>
-
                     <span className="truncate text-xs text-sidebar-foreground/60">
                       Settings & preferences
                     </span>
@@ -175,8 +218,6 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
-      <SidebarRail />
     </Sidebar>
   );
 }

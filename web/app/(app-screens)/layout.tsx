@@ -22,10 +22,6 @@ export default async function AppScreensLayout({
       <AppSidebar />
 
       <main className="flex min-h-svh w-full flex-col">
-        <header className="flex h-12 shrink-0 items-center border-b border-border px-4">
-          <SidebarTrigger />
-        </header>
-
         <div className="flex-1">
           {children}
         </div>

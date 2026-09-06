@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Activity,
   Check,
   ChevronDown,
   Clock,
@@ -67,7 +68,6 @@ function timeAgo(iso: string | null) {
   if (!iso) return null;
 
   const diffMs = Date.now() - new Date(iso).getTime();
-
   const minutes = Math.round(diffMs / 60000);
 
   if (minutes < 1) {
@@ -148,7 +148,9 @@ function isMac() {
     return false;
   }
 
-  return navigator.platform.toLowerCase().includes("mac");
+  return navigator.platform
+    .toLowerCase()
+    .includes("mac");
 }
 
 export default function AutomationTopInfo() {
@@ -224,6 +226,12 @@ export default function AutomationTopInfo() {
     ) ?? schedules[0];
 
   const mac = isMac();
+
+  function handleViewRuns() {
+    router.push(
+      `/builder/${automation.id}/runs`
+    );
+  }
 
   async function commitName() {
     const trimmed = draftName.trim();
@@ -308,7 +316,10 @@ export default function AutomationTopInfo() {
       return;
     }
 
-    const nodeIdMap = new Map<string, string>();
+    const nodeIdMap = new Map<
+      string,
+      string
+    >();
 
     if (nodes.length > 0) {
       const stepsToInsert = nodes.map(
@@ -326,7 +337,8 @@ export default function AutomationTopInfo() {
               newAutomation.id,
             title: node.data.title,
             type: node.type,
-            config: node.data.config ?? {},
+            config:
+              node.data.config ?? {},
             position: index,
           };
         }
@@ -373,7 +385,8 @@ export default function AutomationTopInfo() {
             target_step_id:
               targetStepId,
             type:
-              edge.type ?? "smoothstep",
+              edge.type ??
+              "smoothstep",
           };
         })
         .filter(
@@ -438,7 +451,7 @@ export default function AutomationTopInfo() {
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       <Popover
         open={open}
         onOpenChange={setOpen}
@@ -468,7 +481,6 @@ export default function AutomationTopInfo() {
           className="w-80 p-0"
         >
           <div className="relative space-y-3 p-4">
-            {/* Header */}
             <div className="flex items-start gap-3 pr-8">
               <div className="min-w-0 flex-1">
                 {isEditingName ? (
@@ -530,7 +542,6 @@ export default function AutomationTopInfo() {
                 )}
               </div>
 
-              {/* Theme switcher */}
               <div className="absolute right-2 top-2">
                 <ThemeSwitcher />
               </div>
@@ -542,7 +553,6 @@ export default function AutomationTopInfo() {
               </p>
             )}
 
-            {/* Status */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -595,7 +605,6 @@ export default function AutomationTopInfo() {
 
             <Separator />
 
-            {/* Meta */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -700,7 +709,16 @@ export default function AutomationTopInfo() {
         </PopoverContent>
       </Popover>
 
-      {/* Keyboard shortcuts hint */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 gap-2 rounded-lg border-border bg-card px-3 shadow-xs"
+        onClick={handleViewRuns}
+      >
+        <Activity className="h-3.5 w-3.5" />
+        Runs
+      </Button>
+
       <div
         className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex"
         title="Press Ctrl + / to view keyboard shortcuts"
