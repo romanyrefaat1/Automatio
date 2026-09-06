@@ -46,7 +46,8 @@ export async function automationIndex(
       workflowArray,
       workflowEdges,
       browser,
-      page
+      page,
+      runId
     );
 
     const { error: completedError } = await supabase
