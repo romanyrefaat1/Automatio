@@ -9,6 +9,8 @@ import type { AutomationWithLastRun } from "@/types/dashboard-ui";
 import DashboardStats from "./(components)/DashboardStats";
 import AutomationGrid from "./(components)/AutomationGrid";
 
+export const instant = false;
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
