@@ -46,87 +46,59 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && req.url === "/agent") {
-    try {
-      const body = await readBody(req);
+  try {
+    const body = await readBody(req);
 
-      const prompt = body?.prompt;
-      const url = body?.url;
-      const enableFetchPage =
-        body?.fetchPage !== false;
+    const prompt = body?.prompt;
 
-      if (
-        typeof prompt !== "string" ||
-        !prompt.trim()
-      ) {
-        sendJson(res, 400, {
-          success: false,
-          error: "prompt is required",
-        });
-
-        return;
-      }
-
-      if (
-        url !== undefined &&
-        typeof url !== "string"
-      ) {
-        sendJson(res, 400, {
-          success: false,
-          error: "url must be a string",
-        });
-
-        return;
-      }
-
-      console.log(
-        `ChatGPT agent request: ${prompt}`
-      );
-
-      const response = await runChatGPTAgent(
-        prompt,
-        {
-          url,
-          enableFetchPage,
-          maxRounds: 6,
-        }
-      );
-
-      /*
-       * IMPORTANT:
-       *
-       * The frontend expects `answer`, `fetchUrls`, and `result`
-       * as TOP-LEVEL fields on the JSON body (see AgentApiResponse
-       * in AgentTab.tsx). Do not nest the agent's reply under a
-       * `response` key here — that mismatch was previously causing
-       * the frontend to read `data.answer` as undefined and fall
-       * back to an empty string, so the agent's answer silently
-       * never rendered even though the backend succeeded.
-       */
-      sendJson(res, 200, {
-        success: true,
-        answer: response.answer,
-        fetchUrls: response.fetchUrls,
-        result: response.result,
-      });
-
-      return;
-    } catch (error) {
-      console.error(
-        "ChatGPT agent failed:",
-        error
-      );
-
-      sendJson(res, 500, {
+    if (
+      typeof prompt !== "string" ||
+      !prompt.trim()
+    ) {
+      sendJson(res, 400, {
         success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "ChatGPT agent failed",
+        error: "prompt is required",
       });
 
       return;
     }
+
+    console.log(
+      `ChatGPT agent request: ${prompt}`
+    );
+
+    const response = await runChatGPTAgent(
+      prompt,
+      {
+        maxRounds: 6000,
+      }
+    );
+
+    sendJson(res, 200, {
+      success: true,
+      answer: response.answer,
+      result: response.result,
+      done: response.done,
+    });
+
+    return;
+  } catch (error) {
+    console.error(
+      "ChatGPT agent failed:",
+      error
+    );
+
+    sendJson(res, 500, {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "ChatGPT agent failed",
+    });
+
+    return;
   }
+}
 
   if (
     req.method === "POST" &&

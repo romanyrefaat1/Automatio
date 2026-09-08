@@ -5,10 +5,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
-
+import { usePathname } from "next/navigation";
 
 import {
   addIntegration as addIntegrationAction,
@@ -21,6 +22,7 @@ import type {
   TablesInsert,
   TablesUpdate,
 } from "@/types/supabase-auto";
+
 import { createClient } from "@/lib/supabase/client";
 
 type User = Tables<"users">;
@@ -93,7 +95,10 @@ export function UserProvider({
 }: {
   children: ReactNode;
 }) {
-  const supabase = createClient();
+  const pathname = usePathname();
+
+  // Keep one Supabase client for this provider instance.
+  const [supabase] = useState(() => createClient());
 
   const [user, setUser] = useState<User | null>(null);
   const [integrations, setIntegrations] = useState<Integration[]>(
@@ -102,13 +107,33 @@ export function UserProvider({
   const [loading, setLoading] = useState(true);
 
   /**
-   * Fetch the current user's public.users row
+   * Auth pages should not try to load the public user row.
+   *
+   * This matches:
+   * /auth
+   * /auth/login
+   * /auth/signup
+   * /auth/forgot-password
+   * etc.
+   */
+  const isAuthPage = pathname.startsWith("/auth");
+
+  /**
+   * Fetch the current authenticated user's public.users row
    * and their integrations.
    *
    * IMPORTANT:
    * We intentionally do NOT select "secret".
    */
   const refreshUser = useCallback(async () => {
+    // Don't fetch user data on auth pages.
+    if (isAuthPage) {
+      setUser(null);
+      setIntegrations([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -121,6 +146,7 @@ export function UserProvider({
         throw authError;
       }
 
+      // No authenticated user.
       if (!authUser) {
         setUser(null);
         setIntegrations([]);
@@ -157,17 +183,14 @@ export function UserProvider({
       setUser(userResult.data);
       setIntegrations(integrationsResult.data);
     } catch (error) {
-      console.error(
-        "Failed to fetch user data:",
-        error
-      );
+      console.error("Failed to fetch user data:", error);
 
       setUser(null);
       setIntegrations([]);
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [pathname, supabase]);
 
   /**
    * Update the current user's public.users row.
@@ -179,12 +202,11 @@ export function UserProvider({
       data: User | null;
       error: Error | null;
     }> => {
+      // A user is always required to update their profile.
       if (!user) {
         return {
           data: null,
-          error: new Error(
-            "No authenticated user"
-          ),
+          error: new Error("No authenticated user"),
         };
       }
 
@@ -261,7 +283,7 @@ export function UserProvider({
   /**
    * Update an integration.
    *
-   * This also goes through the SERVER ACTION because
+   * This goes through the SERVER ACTION because
    * the update may contain a new secret.
    */
   const updateIntegration = useCallback(
@@ -318,8 +340,7 @@ export function UserProvider({
     ): Promise<{
       error: Error | null;
     }> => {
-      const result =
-        await deleteIntegrationAction(id);
+      const result = await deleteIntegrationAction(id);
 
       if (result.error) {
         return {
@@ -329,8 +350,7 @@ export function UserProvider({
 
       setIntegrations((current) =>
         current.filter(
-          (integration) =>
-            integration.id !== id
+          (integration) => integration.id !== id
         )
       );
 
@@ -342,55 +362,76 @@ export function UserProvider({
   );
 
   /**
-   * Get one integration from the already-loaded
-   * integrations.
+   * Get one integration from the already-loaded integrations.
    */
   const getIntegration = useCallback(
     (id: string) => {
       return integrations.find(
-        (integration) =>
-          integration.id === id
+        (integration) => integration.id === id
       );
     },
     [integrations]
   );
 
   /**
-   * Initial load.
+   * Initial load and route changes.
+   *
+   * When navigating to /auth/*, the provider immediately
+   * clears user data and stops loading.
+   *
+   * When navigating away from /auth/*, user data is loaded.
    */
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
 
   /**
-   * Keep the context synchronized with auth.
+   * Keep the context synchronized with Supabase auth.
    */
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
+      // Don't fetch public user data while on auth pages.
+      if (isAuthPage) {
+        return;
+      }
+
       refreshUser();
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, refreshUser]);
+  }, [pathname, supabase, refreshUser]);
+
+  const value = useMemo<UserContextValue>(
+    () => ({
+      user,
+      integrations,
+      loading,
+      refreshUser,
+      updateUser,
+      addIntegration,
+      updateIntegration,
+      deleteIntegration,
+      getIntegration,
+    }),
+    [
+      user,
+      integrations,
+      loading,
+      refreshUser,
+      updateUser,
+      addIntegration,
+      updateIntegration,
+      deleteIntegration,
+      getIntegration,
+    ]
+  );
 
   return (
-    <UserContext.Provider
-      value={{
-        user,
-        integrations,
-        loading,
-        refreshUser,
-        updateUser,
-        addIntegration,
-        updateIntegration,
-        deleteIntegration,
-        getIntegration,
-      }}
-    >
+    <UserContext.Provider value={value}>
       {children}
     </UserContext.Provider>
   );

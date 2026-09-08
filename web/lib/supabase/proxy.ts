@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
   // Protect the /builder route and all its sub-routes (/builder/*)
   if (
     (request.nextUrl.pathname.startsWith("/builder")
-  || request.nextUrl.pathname.startsWith("/protected")) &&
+  || request.nextUrl.pathname.startsWith("/dashboard")) &&
     !user
   ) {
     const url = request.nextUrl.clone();

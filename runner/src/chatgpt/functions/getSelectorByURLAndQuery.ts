@@ -1,7 +1,7 @@
 import { chromium } from "@playwright/test";
 import { jsonrepair } from "jsonrepair";
-import { fetchPage } from "../fetch-page";
 import { askChatGPT } from "../ask-chatgpt";
+import { fetchPage } from "../agent-tools/fetch-page/fetch-page";
 
 function extractJSON(text: string): any {
   if (!text || !text.trim()) {

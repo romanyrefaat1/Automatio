@@ -62,6 +62,12 @@ import {
   PromptInputHeader,
 } from "@/components/ai-elements/prompt-input"
 
+/*
+ * ============================================================
+ * TYPES
+ * ============================================================
+ */
+
 type AgentStatus =
   | "ready"
   | "submitted"
@@ -69,8 +75,8 @@ type AgentStatus =
   | "error"
 
 interface AgentMetadata {
-  fetchUrls: string[]
   result: unknown
+  done: boolean
 }
 
 interface MessageType {
@@ -83,10 +89,34 @@ interface MessageType {
 interface AgentApiResponse {
   success?: boolean
   answer?: string
-  fetchUrls?: string[]
   result?: unknown
+  done?: boolean
   error?: string
 }
+
+interface WorkflowNode {
+  position: number
+  type: string
+  title: string
+  description?: string
+  config: Record<string, unknown>
+}
+
+interface WorkflowEdge {
+  source: number
+  target: number
+}
+
+interface WorkflowResult {
+  nodes: WorkflowNode[]
+  edges: WorkflowEdge[]
+}
+
+/*
+ * ============================================================
+ * MODELS
+ * ============================================================
+ */
 
 const models = [
   {
@@ -98,41 +128,19 @@ const models = [
   },
 ]
 
-function PromptInputAttachmentsDisplay() {
-  const attachments = usePromptInputAttachments()
+/*
+ * ============================================================
+ * HELPERS
+ * ============================================================
+ */
 
-  if (attachments.files.length === 0) {
-    return null
-  }
-
-  return (
-    <Attachments variant="inline">
-      {attachments.files.map((attachment) => (
-        <Attachment
-          key={attachment.id}
-          data={attachment}
-          onRemove={() =>
-            attachments.remove(attachment.id)
-          }
-        >
-          <AttachmentPreview />
-          <AttachmentRemove />
-        </Attachment>
-      ))}
-    </Attachments>
-  )
-}
-
-function getHostname(url: string) {
-  try {
-    return new URL(url).hostname
-  } catch {
-    return url
-  }
-}
-
-function hasMeaningfulResult(result: unknown) {
-  if (result === null || result === undefined) {
+function hasMeaningfulResult(
+  result: unknown
+) {
+  if (
+    result === null ||
+    result === undefined
+  ) {
     return false
   }
 
@@ -148,122 +156,180 @@ function hasMeaningfulResult(result: unknown) {
   return true
 }
 
-function isWorkflowResult(result: unknown) {
+function isWorkflowResult(
+  result: unknown
+): result is WorkflowResult {
+  if (
+    typeof result !== "object" ||
+    result === null ||
+    Array.isArray(result)
+  ) {
+    return false
+  }
+
+  const value =
+    result as Record<string, unknown>
+
   return (
-    typeof result === "object" &&
-    result !== null &&
-    !Array.isArray(result) &&
-    "steps" in
-      (result as Record<string, unknown>)
+    Array.isArray(value.nodes) &&
+    Array.isArray(value.edges)
   )
 }
 
-function AgentActivity({
-  agent,
-  active = false,
-}: {
-  agent: AgentMetadata
-  active?: boolean
-}) {
-  const [resultOpen, setResultOpen] = useState(false)
+/*
+ * ============================================================
+ * ATTACHMENTS
+ * ============================================================
+ */
 
-  const hasUrls = agent.fetchUrls.length > 0
-  const hasResult = hasMeaningfulResult(
-    agent.result
-  )
+function PromptInputAttachmentsDisplay() {
+  const attachments =
+    usePromptInputAttachments()
 
-  if (!hasUrls && !hasResult) {
+  if (
+    attachments.files.length === 0
+  ) {
     return null
   }
 
   return (
+    <Attachments variant="inline">
+      {attachments.files.map(
+        (attachment) => (
+          <Attachment
+            key={attachment.id}
+            data={attachment}
+            onRemove={() =>
+              attachments.remove(
+                attachment.id
+              )
+            }
+          >
+            <AttachmentPreview />
+            <AttachmentRemove />
+          </Attachment>
+        )
+      )}
+    </Attachments>
+  )
+}
+
+/*
+ * ============================================================
+ * AGENT ACTIVITY
+ * ============================================================
+ */
+
+function AgentActivity({
+  agent,
+}: {
+  agent: AgentMetadata
+}) {
+  const [
+    resultOpen,
+    setResultOpen,
+  ] = useState(false)
+
+  const hasResult =
+    hasMeaningfulResult(agent.result)
+
+  if (!hasResult) {
+    return null
+  }
+
+  const workflow =
+    isWorkflowResult(agent.result)
+
+  return (
     <div className="mt-2 space-y-2">
-      {hasUrls && (
-        <div className="rounded-xl border bg-muted/30 p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs font-medium">
-            {active ? (
-              <Loader2Icon className="size-3.5 animate-spin" />
-            ) : (
-              <GlobeIcon className="size-3.5" />
-            )}
+      <div className="overflow-hidden rounded-xl border bg-muted/30">
+        <button
+          type="button"
+          onClick={() =>
+            setResultOpen(
+              (previous) =>
+                !previous
+            )
+          }
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-muted/50"
+        >
+          {workflow ? (
+            <SparklesIcon className="size-3.5" />
+          ) : (
+            <TerminalIcon className="size-3.5" />
+          )}
 
-            <span>
-              {active
-                ? "Inspecting websites"
-                : "Web pages requested"}
-            </span>
-          </div>
+          <span className="flex-1">
+            {workflow
+              ? "Generated workflow"
+              : "Agent result"}
+          </span>
 
-          <div className="space-y-1.5">
-            {agent.fetchUrls.map((url) => (
-              <div
-                key={url}
-                className="flex min-w-0 items-center gap-2 rounded-lg border bg-background px-2.5 py-2"
-              >
-                <GlobeIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <ChevronDownIcon
+            className={`size-3.5 transition-transform ${
+              resultOpen
+                ? "rotate-180"
+                : ""
+            }`}
+          />
+        </button>
 
-                <span className="min-w-0 flex-1 truncate text-xs">
-                  {getHostname(url)}
+        {resultOpen && (
+          <div className="border-t px-3 py-3">
+            {workflow && (
+              <div className="mb-3 flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs">
+                <SparklesIcon className="size-3.5" />
+
+                <span className="font-medium">
+                  {agent.result.nodes.length}{" "}
+                  {agent.result.nodes.length ===
+                  1
+                    ? "node"
+                    : "nodes"}
                 </span>
 
-                <span className="shrink-0 text-[10px] text-muted-foreground">
-                  {active
-                    ? "Fetching..."
-                    : "Requested"}
+                <span className="text-muted-foreground">
+                  ·
+                </span>
+
+                <span className="text-muted-foreground">
+                  {agent.result.edges.length}{" "}
+                  {agent.result.edges.length ===
+                  1
+                    ? "connection"
+                    : "connections"}
                 </span>
               </div>
-            ))}
+            )}
+
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-background p-3 text-xs leading-relaxed text-muted-foreground">
+              {JSON.stringify(
+                agent.result,
+                null,
+                2
+              )}
+            </pre>
           </div>
-        </div>
-      )}
-
-      {hasResult && (
-        <div className="overflow-hidden rounded-xl border bg-muted/30">
-          <button
-            type="button"
-            onClick={() =>
-              setResultOpen((previous) => !previous)
-            }
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-muted/50"
-          >
-            <TerminalIcon className="size-3.5" />
-
-            <span className="flex-1">
-              {isWorkflowResult(agent.result)
-                ? "Workflow"
-                : "Result"}
-            </span>
-
-            <ChevronDownIcon
-              className={`size-3.5 transition-transform ${
-                resultOpen ? "rotate-180" : ""
-              }`}
-            />
-          </button>
-
-          {resultOpen && (
-            <div className="border-t px-3 py-3">
-              <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
-                {JSON.stringify(
-                  agent.result,
-                  null,
-                  2
-                )}
-              </pre>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
+
+/*
+ * ============================================================
+ * PROCESSING
+ * ============================================================
+ */
 
 function AgentProcessing() {
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
       <SparklesIcon className="size-4" />
 
-      <span>Agent is working</span>
+      <span>
+        Agent is working
+      </span>
 
       <span className="ml-1 flex gap-1">
         <span className="size-1 animate-pulse rounded-full bg-current [animation-delay:-0.3s]" />
@@ -274,23 +340,30 @@ function AgentProcessing() {
   )
 }
 
+/*
+ * ============================================================
+ * COMPONENT
+ * ============================================================
+ */
+
 export function AgentTab() {
-  const [model, setModel] = useState(
-    models[0].id
-  )
+  const [model, setModel] =
+    useState(models[0].id)
 
-  const [modelSelectorOpen, setModelSelectorOpen] =
-    useState(false)
+  const [
+    modelSelectorOpen,
+    setModelSelectorOpen,
+  ] = useState(false)
 
-  const [text, setText] = useState(
-    "Hello, what can you do?"
-  )
+  const [text, setText] =
+    useState(
+      "Hello, what can you do?"
+    )
 
-  const [useWebSearch, setUseWebSearch] =
-    useState(false)
-
-  const [useMicrophone, setUseMicrophone] =
-    useState(false)
+  const [
+    useMicrophone,
+    setUseMicrophone,
+  ] = useState(false)
 
   const [status, setStatus] =
     useState<AgentStatus>("ready")
@@ -298,24 +371,38 @@ export function AgentTab() {
   const [messages, setMessages] =
     useState<MessageType[]>([])
 
-  const selectedModel = models.find(
-    (item) => item.id === model
-  )
+  const selectedModel =
+    models.find(
+      (item) => item.id === model
+    )
+
+  /*
+   * ==========================================================
+   * SUBMIT
+   * ==========================================================
+   */
 
   async function handleSubmit(
     message: PromptInputMessage
   ) {
-    const prompt = message.text?.trim()
+    const prompt =
+      message.text?.trim()
 
     const hasAttachments =
-      Boolean(message.files?.length)
+      Boolean(
+        message.files?.length
+      )
 
-    if (!prompt && !hasAttachments) {
+    if (
+      !prompt &&
+      !hasAttachments
+    ) {
       return
     }
 
     const userContent =
-      prompt || "Sent with attachments"
+      prompt ||
+      "Sent with attachments"
 
     const userMessageId =
       crypto.randomUUID()
@@ -324,60 +411,80 @@ export function AgentTab() {
       crypto.randomUUID()
 
     /*
-     * Add both messages immediately.
-     *
-     * The assistant message starts empty so the
-     * processing indicator can be displayed while
-     * the backend is working.
+     * Add the user message and an
+     * initially-empty assistant message.
      */
-    setMessages((previous) => [
-      ...previous,
-      {
-        key: userMessageId,
-        from: "user",
-        content: userContent,
-      },
-      {
-        key: assistantMessageId,
-        from: "assistant",
-        content: "",
-        agent: {
-          fetchUrls: [],
-          result: {},
+    setMessages(
+      (previous) => [
+        ...previous,
+        {
+          key: userMessageId,
+          from: "user",
+          content: userContent,
         },
-      },
-    ])
+        {
+          key: assistantMessageId,
+          from: "assistant",
+          content: "",
+          agent: {
+            result: {},
+            done: false,
+          },
+        },
+      ]
+    )
 
     setText("")
     setStatus("submitted")
 
-    if (message.files?.length) {
-      toast.success("Files attached", {
-        description: `${message.files.length} file(s) attached`,
-      })
+    if (
+      message.files?.length
+    ) {
+      toast.success(
+        "Files attached",
+        {
+          description: `${message.files.length} file(s) attached`,
+        }
+      )
     }
 
     try {
       setStatus("streaming")
 
-      const response = await fetch(
-        "http://localhost:3000/agent",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: userContent,
-            fetchPage: useWebSearch,
-          }),
-        }
-      )
+      /*
+       * ------------------------------------------------------
+       * BACKEND REQUEST
+       * ------------------------------------------------------
+       *
+       * The agent itself decides whether it needs:
+       *
+       * - fetch_page
+       * - call_system_files
+       *
+       * Nothing about those tools is sent from the
+       * frontend anymore.
+       */
+      const response =
+        await fetch(
+          "http://localhost:3000/agent",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              prompt: userContent,
+            }),
+          }
+        )
 
-      let data: AgentApiResponse
+      let data:
+        AgentApiResponse
 
       try {
-        data = await response.json()
+        data =
+          await response.json()
       } catch {
         throw new Error(
           "Backend returned an invalid response."
@@ -389,7 +496,10 @@ export function AgentTab() {
         data
       )
 
-      if (!response.ok || !data.success) {
+      if (
+        !response.ok ||
+        !data.success
+      ) {
         throw new Error(
           data.error ||
             "Agent request failed"
@@ -397,61 +507,63 @@ export function AgentTab() {
       }
 
       /*
-       * Normalize the API response.
+       * ------------------------------------------------------
+       * NORMALIZE RESPONSE
+       * ------------------------------------------------------
        */
+
       const answer =
-        typeof data.answer === "string"
+        typeof data.answer ===
+        "string"
           ? data.answer
           : ""
-
-      const fetchUrls =
-        Array.isArray(data.fetchUrls)
-          ? data.fetchUrls.filter(
-              (url): url is string =>
-                typeof url === "string"
-            )
-          : []
 
       const result =
         "result" in data
           ? data.result
           : {}
 
+      const done =
+        data.done === true
+
       console.log(
         "Updating assistant message:",
         {
-          messageId: assistantMessageId,
+          messageId:
+            assistantMessageId,
           answer,
-          fetchUrls,
           result,
+          done,
         }
       )
 
       /*
-       * IMPORTANT:
-       *
-       * The actual visible assistant response is stored
-       * directly in `content`.
-       *
-       * `agent` contains only execution metadata.
+       * ------------------------------------------------------
+       * UPDATE ASSISTANT MESSAGE
+       * ------------------------------------------------------
        */
-      setMessages((previous) =>
-        previous.map((item) => {
-          if (
-            item.key !== assistantMessageId
-          ) {
-            return item
-          }
 
-          return {
-            ...item,
-            content: answer,
-            agent: {
-              fetchUrls,
-              result,
-            },
-          }
-        })
+      setMessages(
+        (previous) =>
+          previous.map(
+            (item) => {
+              if (
+                item.key !==
+                assistantMessageId
+              ) {
+                return item
+              }
+
+              return {
+                ...item,
+                content: answer,
+                agent: {
+                  result,
+                  done,
+                },
+              }
+            }
+          )
       )
 
       setStatus("ready")
@@ -466,75 +578,101 @@ export function AgentTab() {
           ? error.message
           : "Something went wrong"
 
-      setMessages((previous) =>
-        previous.map((item) => {
-          if (
-            item.key !== assistantMessageId
-          ) {
-            return item
-          }
+      setMessages(
+        (previous) =>
+          previous.map(
+            (item) => {
+              if (
+                item.key !==
+                assistantMessageId
+              ) {
+                return item
+              }
 
-          return {
-            ...item,
-            content: errorMessage,
-            agent: undefined,
-          }
-        })
+              return {
+                ...item,
+                content:
+                  errorMessage,
+                agent:
+                  undefined,
+              }
+            }
+          )
       )
 
       setStatus("error")
 
-      toast.error("Agent request failed", {
-        description: errorMessage,
-      })
+      toast.error(
+        "Agent request failed",
+        {
+          description:
+            errorMessage,
+        }
+      )
     }
   }
+
+  /*
+   * ==========================================================
+   * RENDER
+   * ==========================================================
+   */
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <Conversation className="min-h-0 flex-1">
         <ConversationContent>
-          {messages.map((message) => {
-            const isAssistant =
-              message.from === "assistant"
+          {messages.map(
+            (message) => {
+              const isAssistant =
+                message.from ===
+                "assistant"
 
-            const isLatest =
-              message.key ===
-              messages[
-                messages.length - 1
-              ]?.key
+              const isLatest =
+                message.key ===
+                messages[
+                  messages.length -
+                    1
+                ]?.key
 
-            const isProcessing =
-              isAssistant &&
-              isLatest &&
-              status === "streaming" &&
-              !message.content
+              const isProcessing =
+                isAssistant &&
+                isLatest &&
+                status ===
+                  "streaming" &&
+                !message.content
 
-            return (
-              <Message
-                key={message.key}
-                from={message.from}
-              >
-                <MessageContent>
-                  {message.content ? (
-                    <MessageResponse>
-                      {message.content}
-                    </MessageResponse>
-                  ) : isProcessing ? (
-                    <AgentProcessing />
-                  ) : null}
+              return (
+                <Message
+                  key={message.key}
+                  from={
+                    message.from
+                  }
+                >
+                  <MessageContent>
+                    {message.content ? (
+                      <MessageResponse>
+                        {
+                          message.content
+                        }
+                      </MessageResponse>
+                    ) : isProcessing ? (
+                      <AgentProcessing />
+                    ) : null}
 
-                  {isAssistant &&
-                    message.agent && (
-                      <AgentActivity
-                        agent={message.agent}
-                        active={isProcessing}
-                      />
-                    )}
-                </MessageContent>
-              </Message>
-            )
-          })}
+                    {isAssistant &&
+                      message.agent && (
+                        <AgentActivity
+                          agent={
+                            message.agent
+                          }
+                        />
+                      )}
+                  </MessageContent>
+                </Message>
+              )
+            }
+          )}
         </ConversationContent>
 
         <ConversationScrollButton />
@@ -545,7 +683,9 @@ export function AgentTab() {
           <PromptInput
             globalDrop
             multiple
-            onSubmit={handleSubmit}
+            onSubmit={
+              handleSubmit
+            }
           >
             <PromptInputHeader>
               <PromptInputAttachmentsDisplay />
@@ -554,13 +694,20 @@ export function AgentTab() {
             <PromptInputBody>
               <PromptInputTextarea
                 value={text}
-                onChange={(event) =>
-                  setText(event.target.value)
+                onChange={(
+                  event
+                ) =>
+                  setText(
+                    event.target
+                      .value
+                  )
                 }
                 placeholder="Ask your agent..."
                 disabled={
-                  status === "submitted" ||
-                  status === "streaming"
+                  status ===
+                    "submitted" ||
+                  status ===
+                    "streaming"
                 }
               />
             </PromptInputBody>
@@ -588,7 +735,8 @@ export function AgentTab() {
                       : "ghost"
                   }
                   disabled={
-                    status === "streaming"
+                    status ===
+                    "streaming"
                   }
                 >
                   <MicIcon size={16} />
@@ -598,29 +746,10 @@ export function AgentTab() {
                   </span>
                 </PromptInputButton>
 
-                <PromptInputButton
-                  onClick={() =>
-                    setUseWebSearch(
-                      (previous) =>
-                        !previous
-                    )
-                  }
-                  variant={
-                    useWebSearch
-                      ? "default"
-                      : "ghost"
-                  }
-                  disabled={
-                    status === "streaming"
-                  }
-                >
-                  <GlobeIcon size={16} />
-
-                  <span>Search</span>
-                </PromptInputButton>
-
                 <ModelSelector
-                  open={modelSelectorOpen}
+                  open={
+                    modelSelectorOpen
+                  }
                   onOpenChange={
                     setModelSelectorOpen
                   }
@@ -630,7 +759,8 @@ export function AgentTab() {
                   >
                     <PromptInputButton
                       disabled={
-                        status === "streaming"
+                        status ===
+                        "streaming"
                       }
                     >
                       {selectedModel?.chefSlug && (
@@ -641,9 +771,12 @@ export function AgentTab() {
                         />
                       )}
 
-                      {selectedModel?.name && (
+                      {selectedModel
+                        ?.name && (
                         <ModelSelectorName>
-                          {selectedModel.name}
+                          {
+                            selectedModel.name
+                          }
                         </ModelSelectorName>
                       )}
                     </PromptInputButton>
@@ -654,57 +787,70 @@ export function AgentTab() {
 
                     <ModelSelectorList>
                       <ModelSelectorEmpty>
-                        No models found.
+                        No models
+                        found.
                       </ModelSelectorEmpty>
 
                       <ModelSelectorGroup heading="OpenAI">
-                        {models.map((item) => (
-                          <ModelSelectorItem
-                            key={item.id}
-                            value={item.id}
-                            onSelect={() => {
-                              setModel(
+                        {models.map(
+                          (
+                            item
+                          ) => (
+                            <ModelSelectorItem
+                              key={
                                 item.id
-                              )
-
-                              setModelSelectorOpen(
-                                false
-                              )
-                            }}
-                          >
-                            <ModelSelectorLogo
-                              provider={
-                                item.chefSlug
                               }
-                            />
-
-                            <ModelSelectorName>
-                              {item.name}
-                            </ModelSelectorName>
-
-                            <ModelSelectorLogoGroup>
-                              {item.providers.map(
-                                (provider) => (
-                                  <ModelSelectorLogo
-                                    key={
-                                      provider
-                                    }
-                                    provider={
-                                      provider
-                                    }
-                                  />
+                              value={
+                                item.id
+                              }
+                              onSelect={() => {
+                                setModel(
+                                  item.id
                                 )
-                              )}
-                            </ModelSelectorLogoGroup>
 
-                            {model ===
-                            item.id ? (
-                              <CheckIcon className="ml-auto size-4" />
-                            ) : (
-                              <div className="ml-auto size-4" />
-                            )}
-                          </ModelSelectorItem>
-                        ))}
+                                setModelSelectorOpen(
+                                  false
+                                )
+                              }}
+                            >
+                              <ModelSelectorLogo
+                                provider={
+                                  item.chefSlug
+                                }
+                              />
+
+                              <ModelSelectorName>
+                                {
+                                  item.name
+                                }
+                              </ModelSelectorName>
+
+                              <ModelSelectorLogoGroup>
+                                {item.providers.map(
+                                  (
+                                    provider
+                                  ) => (
+                                    <ModelSelectorLogo
+                                      key={
+                                        provider
+                                      }
+                                      provider={
+                                        provider
+                                      }
+                                    />
+                                  )
+                                )}
+                              </ModelSelectorLogoGroup>
+
+                              {model ===
+                              item.id ? (
+                                <CheckIcon className="ml-auto size-4" />
+                              ) : (
+                                <div className="ml-auto size-4" />
+                              )}
+                            </ModelSelectorItem>
+                          )
+                        )}
                       </ModelSelectorGroup>
                     </ModelSelectorList>
                   </ModelSelectorContent>
@@ -714,8 +860,10 @@ export function AgentTab() {
               <PromptInputSubmit
                 disabled={
                   !text.trim() ||
-                  status === "submitted" ||
-                  status === "streaming"
+                  status ===
+                    "submitted" ||
+                  status ===
+                    "streaming"
                 }
                 status={status}
               />
