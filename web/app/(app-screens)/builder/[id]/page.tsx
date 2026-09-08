@@ -5,7 +5,7 @@ import { AutomationNodesProvider } from "../contexts/AutomationNodesContext";
 import { NewNodeSubTabsProvider } from "../contexts/NewNodeSubTabsContext";
 import { KeyboardShortcutsDialog } from "../components/KeyboardShortcutsDialog";
 
-export const instant = false;
+// export const instant = false;
 
 type Props = {
   params: Promise<{
