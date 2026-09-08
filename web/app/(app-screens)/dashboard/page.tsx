@@ -8,6 +8,7 @@ import type { AutomationWithLastRun } from "@/types/dashboard-ui";
 
 import DashboardStats from "./(components)/DashboardStats";
 import AutomationGrid from "./(components)/AutomationGrid";
+import ChatUIInDashboard from "./(components)/ChatUIInDashboard";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -108,6 +109,11 @@ export default async function DashboardPage() {
   return (
     <main className="min-h-full">
       <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+
+      {/* Chat UI */}
+      <div><ChatUIInDashboard /></div>
+
+        
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1>Automations</h1>
