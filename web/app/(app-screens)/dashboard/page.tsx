@@ -9,6 +9,7 @@ import type { AutomationWithLastRun } from "@/types/dashboard-ui";
 import DashboardStats from "./(components)/DashboardStats";
 import AutomationGrid from "./(components)/AutomationGrid";
 import ChatUIInDashboard from "./(components)/ChatUIInDashboard";
+import { PromptInputProvider } from "@/components/ai-elements/prompt-input";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -107,6 +108,7 @@ export default async function DashboardPage() {
   ).length;
 
   return (
+    <PromptInputProvider>
     <main className="min-h-full">
       <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
 
@@ -142,5 +144,6 @@ export default async function DashboardPage() {
         </div>
       </div>
     </main>
+    </PromptInputProvider>
   );
 }
